@@ -9,7 +9,7 @@
 ############################################################
 
 host=localhost
-community=Mupfel
+community=community
 
 current=`date '+%s'`
 
