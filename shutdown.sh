@@ -15,6 +15,9 @@
 # Added script for VMs
 # WS 20110331
 ####
+# sh -> bash, footer at the end of log file
+# WS 20110410
+####
 
 process=BackupPC_dump
 wait_time=5m
