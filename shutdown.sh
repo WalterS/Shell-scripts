@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ############################################################
 # shutdown
@@ -51,16 +51,9 @@ done
 end_time=`date '+%s'`
 
 if [ $counter -gt 0 ]; then
-	exec_time=`echo "($end_time-$start_time)/60" | bc`
+	exec_time=$(($(($end_time-$start_time))/60))
 fi
 
-# Write log file
-cat << END >> $log
-_____________________________________________________________________________________
-`date '+%Y%m%d %H:%M'`
-Shutting down machine after $counter waiting cycle(s) ($exec_time minutes).
-
-END
 
 # Shut down VMs
 echo "Shutting down VMs" >> $log
@@ -69,6 +62,14 @@ echo "Shutting down VMs" >> $log
 # Turn off watchdog on NETIO
 echo "Turning off watchdog on NETIO" >> $log
 /usr/local/bin/netio_wd off &>> $log
+
+# Write log file footer
+cat << END >> $log
+Shutting down machine after $counter waiting cycle(s) ($exec_time minutes).
+`date '+%Y%m%d %H:%M'`
+_____________________________________________________________________________________
+
+END
 
 # Shut down machine
 /sbin/poweroff
