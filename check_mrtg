@@ -1,0 +1,89 @@
+#!/bin/bash
+
+############################################################
+# check_mrtg
+#
+# Checks if OID in mrtg.cfg are still valid
+#
+# WS 20110216
+############################################################
+## Changes ##
+####################
+# Added editing capability
+# WS 20110305
+##
+# Added error statement on exit and colourised messages
+# WS 20110311
+
+#snmpwalk -v 2c -c Mupfel localhost .1.3.6.1.4.1.2021.13.16 | awk -F"\\.| =" '/CPU FAN/ {print $2}'
+
+items=("CPU FAN" "CHASSIS FAN" "CPU Temperature" "MB Temperature")
+mrtg_key=(fans fans cpu_temp temp_mb)
+mrtg_cfg=/etc/mrtg/mrtg.cfg
+
+IFS=$'\n'
+temp=/tmp/`basename $0`.tmp
+rc=0
+found_errors=0
+
+cleanup () {
+rm -f $temp &>/dev/null
+}
+
+# Always exit cleanly
+trap 'cleanup' 0
+trap 'cleanup; exit 2' 1 2 3 15
+
+# Get OIDs
+if snmpwalk -O n -v 2c -c public localhost .1.3.6.1.4.1.2021.13.16 > $temp 2> /dev/null; then
+	:
+else
+	echo -e "\e[01;31m`basename $0`: Could not perform snmpwalk\e[00m"
+	exit 2
+fi
+
+i=0
+for item in ${items[*]}; do
+	# Find OID and change from index to value
+	oids[${i}]=`awk -F'\\\\.| =' '/'"$item"'/ {$(NF-2)=$(NF-2)+1; { for (i = 2; i < NF; ++i) printf "."$i }}' $temp`
+	oid_temp=`echo ${oids[${i}]} | sed 's/\./\\./g'`
+
+	# Search for OID in mrtg.cfg
+	if [ "`awk '/'"${mrtg_key[${i}]}"'/ && /'"${oid_temp}"'/ && /@/ && ! /^#/' $mrtg_cfg`" == "" ]; then
+#		echo "Mismatch for ${mrtg_key[${i}]} (${item}), correct OID would be ${oids[${i}]}"
+		((found_errors++))
+	else
+		:
+#		echo "Found ${mrtg_key[${i}]} (${item})"
+	fi
+
+	((i++))
+done
+
+
+if [ $found_errors -gt 0 ]; then
+	echo -e "\e[01;32mErrors found, correcting, please check $mrtg_cfg\e[00m"
+	# Build target lines for MRTG
+	target_fans="Target[fans]: ${oids[0]}\\&${oids[1]}:Mupfel@127.0.0.1"
+	target_cpu_temp="Target[cpu_temp]: ${oids[2]}\\&${oids[2]}:Mupfel@127.0.0.1"
+	target_temp_mb="Target[temp_mb]: ${oids[3]}\\&${oids[3]}:Mupfel@127.0.0.1"
+	
+	# Edit mrtg_cfg
+	sed -i "s/^Target\[fans\]:.*/${target_fans}/" $mrtg_cfg
+	rc=$((rc + $?))
+	sed -i "s/^Target\[cpu_temp\]:.*/${target_cpu_temp}/" $mrtg_cfg
+	rc=$((rc + $?))
+	sed -i "s/^Target\[temp_mb\]:.*/${target_temp_mb}/" $mrtg_cfg
+	rc=$((rc + $?))
+else
+	echo -e "\e[01;32mNo errors found in $mrtg_cfg\e[00m"
+fi
+
+if [ $rc -gt 0 ]; then
+	echo -e "\e[01;32m`basename $0` exited with errors\e[00m"
+fi
+
+exit $rc
+
+# EOF
+

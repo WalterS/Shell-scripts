@@ -1,0 +1,71 @@
+#!/bin/sh
+
+############################################################
+# wine_wrapper
+# Executes Windows programs
+# If called by its own name it will create the neccesary
+# symbolic links
+#
+# WS 20100924
+############################################################
+
+# Base directory
+base="/home/walter/.wine/drive_c/programme/"
+
+# Program directory
+prog_dir="/usr/local/bin"
+
+rc=0
+tag=
+prog=
+
+# Let's see how we were called
+case `basename $0` in
+	irfanview)
+		prog="multimedia/irfanview/i_view32.exe" ;;
+	mp3tag)
+		prog="multimedia/mp3tag/Mp3tag.exe" ;;
+	foobar2000)
+		prog="multimedia/foobar2000/foobar2000.exe" ;;
+	getright)
+		prog="net/getright/getright.exe" ;;
+	atube_catcher)
+		prog="net/atube_catcher/yct.exe" ;;
+	avi_tags)
+		prog="multimedia/abcavi/avi_tags.exe" ;;
+	mp3directcut)
+		prog="multimedia/mp3directcut/mp3directcut.exe" ;;
+	mp3merge)
+		prog="multimedia/mp3merger/mp3merge.exe" ;;
+	emule)
+		prog="net/emule/emule.exe" ;;
+	totalcmd)
+		prog="tools/wincmd/totalcmd.exe" ;;
+	renamer)
+		prog="tools/14aren/rename.exe /e" ;;
+	adc)
+		prog="tools/adc/Adc.exe" ;;
+	vnc_listener)
+		prog="net/vncviewer.exe -listen 6699" ;;
+	pdfx)
+		prog="tools/pdfx/PDFXCview.exe" ;;
+	wine_wrapper)
+		cd $prog_dir
+		for tag in irfanview mp3tag foobar2000 getright atube_catcher avi_tags mp3directcut mp3merge emule totalcmd renamer adc vnc_listener pdfx; do
+			ln -s `basename $0` $tag
+			rc=`expr $rc + $?`
+		done
+		exit $rc ;;
+		
+	*)
+		echo "Can't recognise my own name (`basename $0`), bailing out" 1>&2
+		exit 2
+		;;
+esac
+
+wine ${base}${prog} > /dev/null 2>&1 &
+rc=$?
+
+exit $rc
+
+# EOF

@@ -1,0 +1,14 @@
+#!/bin/sh
+
+############################################################
+# psgrep
+#
+# Greps the process list for a given string
+# The search is not case sensitive
+#
+# WS 20091211
+############################################################
+
+ps -ef | awk 'BEGIN {IGNORECASE=1}; /'"$1"'/ && $2 !~/^'"$$"'$/ && $3 !~/^'"$$"'$/'
+
+# EOF

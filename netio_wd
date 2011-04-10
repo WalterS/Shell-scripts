@@ -1,0 +1,83 @@
+#!/usr/bin/expect
+
+############################################################
+# Script for NETIO power controller
+# Disables/enables watchdog on port $netio_port
+#
+# WS 20110317
+############################################################
+######## Changes ########
+# Script now prints only status and errors, not the whole
+# telnet chatter, improved error handling, error messages are
+# send to stderr.
+# WS 20110410
+####
+
+
+########### Configure here ###########
+# Device address
+set address "192.168.1.1"
+set port "1234"
+
+# Login data
+set user "admin"
+set pass "my_password"
+
+# Controlled port
+set netio_port "1"
+
+# Path to telnet
+set telnet "/usr/bin/telnet"
+######### Configuration end ##########
+
+
+## Error handling
+# Valid arguments are "on" and "off"
+set action [lindex $argv 0]
+if { "$action"=="" } { send_error "Error: No argument given\n\nValid arguments are \"on\" and \"off\"\nExample: $argv0 on\n"; exit 1}
+if { $action==on } {
+	set action "enable"; send_user "Trying to $action watchdog on port $netio_port\n"
+} elseif {$action==off} {
+	set action "disable"; send_user "Trying to $action watchdog on port $netio_port\n"
+} else {
+	send_error "Error: Could not understand argument \"$action\"\n\nValid arguments are \"on\" and \"off\"\nExample: $argv0 on\n"; exit 1
+}
+
+# Timeout 3 seconds
+set timeout 3
+# Don't echo the telnet session
+log_user 0
+
+#### Here we go
+spawn -noecho $telnet $address $port
+# Login
+expect {
+	"100 HELLO*\r" { send "login $user $pass\r" }
+
+	timeout { send_user "Timeout while connecting to $address\n"; exit 1}
+}
+# Set watchdog
+expect {
+	"250*\r" { send "port wd $netio_port $action\r" }
+
+	"50*\r" {send_error "Error while trying to login to $address\nDevice returned $expect_out(buffer)\n"; exit 1}
+	timeout { send_error "Timeout while trying to login to $address\n"; exit 1}
+}
+# Get status
+expect {
+	"250*\r" { send_user "Watchdog $action"; send_user "d on port $netio_port\n"; send "port wd $netio_port\r" }
+
+	"50*\r" {send_error "Error while trying to $action watchdog on port $netio_port\nDevice returned $expect_out(buffer)\n"; exit 1}
+	timeout { send_error "Timeout while trying to $action watchdog on port $netio_port\n"; exit 1}
+}
+# Logout
+expect {
+	
+	"250 $action*\r" { send_user "$expect_out(buffer)\n"; send "quit\r" }
+
+	"50*\r" {send_error "Error while trying to get status of watchdog on port $netio_port\nDevice returned $expect_out(buffer)\n"; exit 1}
+	timeout { send_error "Timeout while trying to get status for port $netio_port\n"; exit 1}
+}
+expect eof
+
+# EOF

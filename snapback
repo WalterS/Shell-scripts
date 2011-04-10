@@ -1,0 +1,89 @@
+#!/bin/bash
+
+##################################################
+# snapback
+# Backup an LVM snapshot
+# First create a 20 % snapshot 
+##################################################
+# To do
+# Check for existing mountpoint
+# Actions for 
+
+dump_level=$1
+dump_file=~/mylv.dmp
+lvm_part=/dev/myvg/mylv
+lvm_snap=${lvm_part}_snap
+lvm_snap_name=`basename $lvm_snap`
+mountpoint=/mnt/$lvm_snap_name
+snap_size=`lvs -o lv_size --units k $lvm_part | awk -F'.' '/K$/ {print $1/5}'`
+lvm_remain=`lvs -o vg_free --units k $lvm_part | awk -F'.' '/K$/ {print $1-'"$snap_size"'}'`
+
+usage ()
+{
+cat << END
+
+`basename $0` creates a backup of $lvm_part
+
+Usage:   `basename $0` <dumplevel>
+Example: `basename $0` 0
+
+END
+}
+
+cleanup () {
+umount -lf $mountpoint &> /dev/null
+lvremove -f $lvm_snap &> /dev/null
+}
+
+trap 'cleanup' 0
+trap 'cleanup; exit 2' 1 2 3 15
+
+# Check command line parameter
+if [ "`expr $1 % 1 2> /dev/null`" == "0" ]; then
+	if [ $1 -ge 0 ]; then
+		dump_level=$1
+	else
+		usage
+		exit 1
+	fi
+else
+	usage
+	exit 1
+fi
+
+# Check size
+if [ $lvm_remain -le 1000 ]; then
+	echo "Not enough space on $lvm_part for 20 % snapshot"
+	exit 1
+fi
+
+# Remove existing snapshot
+if [ -e $lvm_snap ]; then
+	lvremove -f $lvm_snap
+	if [ $? -ne 0 ]; then
+		echo "Could not remove old snapshot ${lvm_snap}, bailing out."
+		exit 1
+	fi
+fi
+
+# Create new snapshot
+if lvcreate --size ${snap_size}K --snapshot --name $lvm_snap_name $lvm_part &> /dev/null; then
+	:
+else
+	echo "Could not create snapshot ${lvm_snap}, bailing out."
+	exit 1
+fi
+
+if mount ${lvm_snap} $mountpoint -o ro; then
+	:
+else
+	rc=$((+$?))
+	echo "Could not mount $lvm_snap to $mountpoint"
+	exit $rc
+fi
+dump -${dump_level}u -f $dump_file $mountpoint
+rc=$((+$?))
+
+exit $rc
+
+# EOF

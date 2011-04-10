@@ -1,0 +1,40 @@
+#!/bin/bash
+
+############################################################
+# getextip_web
+# Obtains external IP address via Internet
+#
+# WS 20110326
+############################################################
+########## Changes ##########
+# Errors are printed to stderr now
+# WS 20110407
+####
+
+# Get IP address
+ip_address=$(wget -q -O - -t 1 -T 10 http://checkip.dyndns.org)
+
+# If the first site is not responding within 10 seconds, try another
+if [ $? -ne 0 ]; then
+	ip_address=$(wget -q -O - -t 1 -T 10 http://whatismyip.org/automation/n09230945.asp)
+	if  [ $? -ne 0 ]; then
+		echo "Error: No external website is reachable, unable to obtain external IP address" 1>&2
+		exit 1
+	fi
+else
+	# Extract IP address from HTML
+	ip_address=$(echo "$ip_address" | awk -F'<|: +' '{print $(NF-2)}')
+fi
+
+# Test obtained string
+ip_test=$(echo "$ip_address" | awk --re-interval -F'.' '$0 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/ && $1 <=255 && $2 <= 255 && $3 <= 255 && $4 <= 255')
+if [ -z $ip_test ]; then
+	echo "Error: Obtained string \"$ip_address\" is not a valid IP address" 1>&2
+	exit 1
+else
+	echo "External IP address is $ip_address"
+fi
+
+exit 0
+
+# EOF

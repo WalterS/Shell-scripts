@@ -1,0 +1,65 @@
+#!/bin/sh
+
+############################################################
+# suspend
+#
+# Suspend machine only if $process is not running
+# Checks every $wait_time minutes/seconds
+#
+# WS 20091211
+############################################################
+########## Changes ##########
+# Errors are printed to stderr now
+# WS 20110408
+####
+
+process=backup
+wait_time=5m
+log=/tmp/`basename $0`.log
+
+start_time=`date '+%s'`
+counter=0
+end_time=
+exec_time=0
+is_running=1
+prc=
+
+
+# Check if log file is accessible
+if touch $log > /dev/null 2>&1; then
+	:
+else
+	echo "Could not access log file $log" 1>&2
+	exit 1
+fi
+
+# Check periodically if process is running
+while [ $is_running -eq 1 ]; do
+	prc=`/usr/local/bin/psgrep $process | awk '!/BackupPC -d/ && ! /BackupPC_trashClean/'`
+	if [ "$prc" == "" ]; then
+		is_running=0
+	else
+		counter=`expr $counter + 1`
+		/bin/sleep $wait_time
+	fi
+done
+
+# Compute run time
+end_time=`date '+%s'`
+
+if [ $counter -gt 0 ]; then
+	exec_time=`echo "($end_time-$start_time)/60" | bc`
+fi
+
+# Write log file
+cat << END >> $log
+_____________________________________________________________________________________
+`date '+%Y%m%d %H:%M'`
+Suspending machine after $counter wait cycles ($exec_time minutes).
+
+END
+
+# Suspend machine
+/usr/sbin/pm-suspend &
+
+# EOF

@@ -1,0 +1,12 @@
+#!/bin/sh
+
+##################################################
+# Show all installed packages without
+# version numbers
+#
+# WS 20061114
+##################################################
+
+rpm -qa --queryformat '%{NAME}\n' | sort -u
+
+# EOF

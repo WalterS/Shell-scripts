@@ -1,0 +1,64 @@
+#!/bin/bash
+
+############################################################
+# show_services
+# Show the status of all chkconfig-registered services
+#
+# The result of this script are not necessarily reliable,
+# because not every service output my be accounted for.
+#
+# WS 20110329
+############################################################
+
+IFS=$'\n'
+counter=0
+service_list=
+running_services=
+service=
+
+# Make sure we're run by root
+if [ "$(id -u)" != "0" ]; then
+	echo "This script must be run as root" 1>&2
+	exit 1
+fi
+
+# Get service list
+service_list=$(chkconfig --list | sort | awk '/0:/ && /3:/ {print $1}')
+
+# Check service status
+for service in $service_list; do
+	# Services with no output
+	case $service in
+		netfs)
+			service $service status &> /dev/null
+			if [ ! $? -eq 0 ]; then
+				running_services="$running_services#$service"
+				((counter++))
+			fi
+			;;
+		network)
+			service network status | grep -qA 1 active  2>/dev/null | egrep -q 'lo|eth' &>/dev/null
+			if [ ! $? -eq 0 ]; then
+				running_services="$running_services#$service"
+				((counter++))
+			fi
+			;;
+	esac
+	service $service status 2> /dev/null | egrep -q 'is running|DROP|enabled|are registered|are loaded'
+	if [ $? -eq 0 ] 2> /dev/null; then
+		running_services="$running_services#$service"
+		((counter++))
+	fi
+done
+
+# Print found services
+if [ ! -z $running_services ]; then
+	echo "$counter services are running:"
+	echo $running_services | sed 's/\#/\n/g'
+else
+	echo "Could not find any running service"
+fi
+
+exit 0
+
+# EOF

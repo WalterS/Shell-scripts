@@ -1,0 +1,93 @@
+#!/bin/sh
+
+############################################################
+# mysql_dump
+#
+# Dump all MySQL databases to separate files in $backupdir
+#
+# WS 20100101
+############################################################
+#### Changes ####
+# Excluded database "information_schema"
+# WS 20100908
+##
+# Errors are printed to stderr now
+# WS 20110407
+####
+
+
+backupdir=/var/lib/mysql/backup
+user=$1
+tmp=/tmp/`basename $0`.$$
+
+rc=0
+db=
+db_err=
+
+# On exit delete temporary file
+trap 'rm -f $tmp > /dev/null 2>&1' 0
+# Returncode 3 if script is interrupted
+trap 'exit 3' 1 2 3 15
+
+usage()
+{
+cat << END
+
+`basename $0` dumps all MySQL databases to separate files in $backupdir
+
+Usage: `basename $0` <database_user>
+
+END
+}
+
+# We need a database user
+if [ $# -ne 1 ]; then
+	echo "Please provide a database user" 1>&2
+        usage
+        exit 2
+fi
+
+if echo "show databases" > $tmp; then
+	:
+else
+	echo "Could not create temporary file $tmp" 1>&2
+	exit 1
+fi
+
+# Test if database is accessible
+if mysql -u $user < $tmp > /dev/null 2>&1; then
+	:
+else
+	echo "Could not execute MySQL statement \"`cat $tmp`\"" 1>&2
+	exit 1
+fi
+
+# Dump databases to individual files
+for db in `mysql -u $user < $tmp | egrep -v 'Database|information_schema' 2> /dev/null`; do
+	mysqldump -u $user $db > ${backupdir}/${db}.sql 2> /dev/null
+	if [ $? -ne 0 ]; then
+		rc=`expr $rc + 1`
+		db_err="$db_err $db"
+	fi
+
+done
+
+# Error report
+if [ $rc -ne 0 ]; then
+	if [ $rc -eq 1 ]; then
+		db_err=`echo $db_err | sed 's/^ *//g'`
+		cat << END 1>&2
+An error occured while dumping the databases.
+Database \"$db_err\" could not be dumped.
+END
+	else
+		cat << END 1>&2
+There were errors while dumping the databases.
+The following databases could not be dumped:
+$db_err
+	fi
+fi
+
+exit $rc
+
+# EOF

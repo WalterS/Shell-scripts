@@ -1,0 +1,59 @@
+#!/bin/bash
+
+############################################################
+# stopvms_local
+# Stops all VMs started by VirtualBox in the context
+# of the current user
+#
+# WS 20110331
+############################################################
+
+vboxmanage=/usr/bin/VBoxManage
+
+IFS=$'\n'
+rc=0
+vms=
+vm=
+name=
+uid=
+
+if ! [ -x "`which $vboxmanage 2>/dev/null`" ]; then
+	echo "Could not find command VBoxManage"
+	exit 1
+fi
+
+# Get list of running VMs
+vms=$($vboxmanage list runningvms | awk -F'{|}' '{print $1,$(NF-1)}' 2>/dev/null)
+
+if [ "$vms" == "" ]; then
+	echo "Nothing to do"
+	exit 0
+fi
+
+for vm in $vms; do
+	name=$(echo $vm | awk '{print $1}')
+	uid=$(echo $vm | awk '{print $NF}')
+	echo "Shutting down $name"
+	# Running escalated shutdown tries, from saving state to poweroff
+	if ! $vboxmanage controlvm $uid savestate 2> /dev/null; then
+		echo "Could not save state of VM $name, trying ACPI shutdown" 1>&2
+		if ! $vboxmanage controlvm $uid acpipowerbutton 2> /dev/null; then
+			echo "ACPI shutdown for VM $name failed, trying poweroff" 1>&2
+			if ! $vboxmanage controlvm $uid poweroff 2> /dev/null; then
+				echo "Could not shut down VM $name, UID $uid" 1>&2
+				((rc++))
+			else
+				echo "Poweroff of VM $name successful"
+			fi
+		else
+			echo "ACPI shutdown of VM $name successful"
+		fi
+	else
+		echo "Saved state of VM $name"
+
+	fi
+done
+
+exit $rc
+
+# EOF

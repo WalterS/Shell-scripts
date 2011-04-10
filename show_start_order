@@ -1,0 +1,56 @@
+#!/bin/sh
+
+############################################################
+# show_start_order
+# show_stop_order (symbolic link)
+#
+# Shows start or stop order of active daemons
+#
+# WS 20091219
+############################################################
+########## Changes ##########
+# Errors are printed to stderr now
+# WS 20110408
+####
+
+
+tmp=/tmp/`basename $0`.$$
+tmp1=/tmp/`basename $0`.1$$
+column=1
+d=
+started_daemons=
+
+
+# Remove temporary file on exit
+trap 'rm -f $tmp $tmp1 > /dev/null 2>&1' 0
+# Set exit code to 2 on abort
+trap 'exit 2' 1 2 3 15
+
+if cd /etc/rc.d/init.d; then
+	:
+else
+	echo "Could not change into /etc/rc.d/init.d, bailing out." 1>&2
+	exit 2
+fi
+
+#Let's see how we were called
+case `basename $0` in
+	show_start_order)
+		column=1 ;;
+	show_stop_order)
+		column=0 ;;
+	*)
+		echo "Can't recognise my own name (`basename $0`), bailing out" 1>&2
+		exit 2
+		;;
+esac
+awk -F":| +|\t+" '/chkconfig:/ { print $(NF-'"$column"')"#"FILENAME }' * | sort -n > $tmp
+started_daemons=`chkconfig --list | awk '/3:on/ {print $1}'`
+
+for d in $started_daemons ; do
+	grep $d $tmp | sed 's/#/ /' >> $tmp1
+done
+sort -n $tmp1
+
+exit 0
+# EOF

@@ -1,0 +1,47 @@
+#!/bin/sh
+
+############################################################
+# purgelocal
+#
+# Purges unneeded locale directories
+#
+# WS 20091125
+############################################################
+########## Changes ##########
+# Errors are printed to stderr now
+# WS 20110408
+####
+
+dir=/usr/share/locale
+
+if [ ! -d $dir ]; then
+	echo "Could not find /usr/share/locale" 1>&2
+	exit 1
+fi
+
+cd $dir
+
+size_1=`du -s -b | awk '{print $1}'`
+rc=0
+diff=0
+
+find . -maxdepth 1 ! -name . ! -name en  ! -name en_GB  ! -name en_US  ! -name 'en@*' ! -name de ! -name de_DE ! -name default ! -name locale.alias ! -name all_languages ! -name l10n ! -name bin | xargs rm -rf '{}' > /dev/null
+
+rc=$?
+
+if [ $rc -ne 0 ]; then
+	echo "Some or all locales could not be purged" 1>&2
+fi
+
+size_2=`du -s -b | awk '{print $1}'`
+
+if [ `expr $size_1 - $size_2` -ne 0 ]; then
+	diff=`echo "scale=2; ($size_1 - $size_2) / 1024 / 1024" | bc -l | sed 's/^\./0./'`
+	
+fi
+
+echo "$diff MB freed"
+
+exit $rc
+
+# EOF

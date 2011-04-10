@@ -1,0 +1,36 @@
+#!/bin/sh
+
+##################################################
+#
+# countlines
+#
+# Count code lines in shell scripts
+# 
+# WS 20050507
+##################################################
+
+
+usage()
+{
+cat << END
+
+`basename $0` counts code lines in a given program
+
+Usage: `basename $0` <script_file>
+
+END
+}
+
+if [ $# -ne 1 ]; then
+        usage
+        exit 2
+fi
+
+allines=`wc -l $1 | awk '{print $1}'`
+codelines=`awk '! /[\/s][\/s]*$/ && !/[\/s]*#/ && !/^$/' $1  | wc -l |  awk '{print $1}'`
+
+echo "The script $1 has $allines lines from which $codelines lines are code"
+
+exit 0
+
+# EOF

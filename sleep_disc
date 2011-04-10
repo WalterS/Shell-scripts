@@ -1,0 +1,44 @@
+#!/bin/bash
+
+########################################################################
+#
+# sleep_disc
+# Powers down external discs
+#
+# 20090201
+########################################################################
+
+#alldiscs=`mount | awk -F'/| ' '/dev\/sd[d-z]/ {print $3}' | sed 's/[0-9]$//'`
+rc=0
+disc=
+used=0
+check=0
+counter=0
+part=
+
+for disc in `mount | awk -F'/| ' '/dev\/sd[c-z]/ {print $3}' | sed 's/[0-9]$//' | sort -u`; do
+	used=0
+	counter=0
+
+	# Check if disc is in use
+	for part in `mount | awk '/'"$disc"'/ {print $3}'`; do
+		if [ "$part" == "" ]; then
+			:
+		else
+			((counter++))
+			# fuser's exit code is 1 when partition is in use
+			fuser -sm $part > /dev/null 2>&1
+			check=$?
+			used=$((used + check))
+		fi
+	done
+	# Only send disc to sleep if all partitions are unused (# fuser_exitcode = # partitions)
+	if [ $used -eq $counter ]; then
+		sg_start --stop /dev/$disc
+		rc=$((rc + $?))
+	fi
+done
+
+exit $rc
+
+# EOF
