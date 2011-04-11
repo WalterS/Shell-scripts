@@ -10,7 +10,7 @@
 #### Changes ####
 # Excluded database "information_schema"
 # WS 20100908
-##
+####
 # Errors are printed to stderr now
 # WS 20110407
 ####
@@ -85,6 +85,7 @@ END
 There were errors while dumping the databases.
 The following databases could not be dumped:
 $db_err
+END
 	fi
 fi
 
