@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ############################################################
 # suspend
@@ -12,14 +12,17 @@
 # Errors are printed to stderr now
 # WS 20110408
 ####
+# sh -> bash, internal arithmetics
+# WS 20110411
+####
 
-process=backup
+process=BackupPC_dump
 wait_time=5m
 log=/tmp/`basename $0`.log
 
-start_time=`date '+%s'`
+start_time=$(date '+%s')
 counter=0
-end_time=
+end_time=0
 exec_time=0
 is_running=1
 prc=
@@ -45,10 +48,10 @@ while [ $is_running -eq 1 ]; do
 done
 
 # Compute run time
-end_time=`date '+%s'`
+end_time=$(date '+%s')
 
 if [ $counter -gt 0 ]; then
-	exec_time=`echo "($end_time-$start_time)/60" | bc`
+	exec_time=$(($(($end_time-$start_time))/60))
 fi
 
 # Write log file
