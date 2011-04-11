@@ -38,11 +38,11 @@ fi
 
 # Check periodically if process is running
 while [ $is_running -eq 1 ]; do
-	prc=`/usr/local/bin/psgrep $process | awk '!/BackupPC -d/ && ! /BackupPC_trashClean/'`
+	prc=$(/usr/local/bin/psgrep $process | awk '!/BackupPC -d/ && ! /BackupPC_trashClean/')
 	if [ "$prc" == "" ]; then
 		is_running=0
 	else
-		counter=`expr $counter + 1`
+		((counter++))
 		/bin/sleep $wait_time
 	fi
 done
