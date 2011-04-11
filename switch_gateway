@@ -1,0 +1,50 @@
+#!/bin/sh
+
+############################################################
+# switch_gateway
+#
+# Switches from one default gateway to another
+#
+# WS 20101104
+############################################################
+######## Changes ########
+####
+# We're using route -n now 
+# WS 20110324
+####
+# Escapes in awk corrected
+# WS 20110406
+####
+
+gw1="1"
+gw2="10"
+prefix="192.168.10."
+gw_new=
+gw_current=`route -n | awk '-F\\\.| +' '/^0\.0\.0\.0/ {print $8}'`
+
+if [ $gw_current -eq $gw1 -o $gw_current -eq $gw2 ]; then
+	echo "Found gw ${prefix}${gw_current}"
+	if [ $gw_current -eq $gw2 ]; then
+		gw_new=$gw1
+	else
+		gw_new=$gw2
+	fi
+else
+	echo "No valid gateway found"
+	exit 2
+fi
+		
+echo "Adding gw ${prefix}${gw_new}"
+route add default gw ${prefix}${gw_new}
+if [ $? -eq 0 ]; then
+	echo "Deleting gw ${prefix}${gw_current}"
+	route delete default gw ${prefix}${gw_current}
+else
+	echo "Could not add new default gateway ${prefix}${gw_new}"
+	exit 1
+fi
+
+echo
+route -n
+
+# EOF
