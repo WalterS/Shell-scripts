@@ -1,0 +1,115 @@
+#!/bin/sh
+
+############################################################
+# makeheader
+#
+# Writes a header for a new Perl, Bourne  or Bash script
+# and starts an (g)vim with the new file
+#
+# WS 20091210
+############################################################
+########## Changes ##########
+####
+# Added bash, error messages will be printed tos stderr
+# WS 20110413
+####
+
+########### Configure here ###########
+# Initials to appear at the start of the last line of the header
+initials=WS
+
+# Editor to use
+editor=vim
+
+# Shebangs
+shebang_pl='#!/usr/bin/perl -w'
+shebang_sh='#!/bin/sh'
+shebang_bash='#!/bin/bash'
+
+# Default shebang
+shebang=$shebang_sh
+######### Configuration end ##########
+
+filename=
+filetype=
+
+usage () {
+
+cat << END 1>&2
+
+Usage:   `basename $0` <name_of_file> [bash|sh|[perl|pl]]
+Example: `basename $0` ~/bin/blafasel.sh bash
+
+If only a file name is given, the file type will be sh
+
+END
+}
+
+if [ $# -lt 1 -o $# -gt 2 ]; then
+	usage
+	exit 1
+fi
+
+filename=$1
+filetype=$2
+
+case $filetype in
+	"bash")
+		shebang=$shebang_bash ;;
+	"sh")
+		shebang=$shebang_sh ;;
+	perl|pl)
+		shebang=$shebang_pl ;;
+	"")
+		;;
+	*)
+		echo "Unknown file type ($filetype)" 1>&2
+		usage
+		exit 1
+esac
+
+filename_short=`basename $filename`
+
+# Some basic tests
+if [ "$filename_short" == "" ]; then
+	echo "Could not determine file name from $filename" 1>&2
+	exit 1
+fi
+
+if [ -f $filename ]; then
+	echo "File \"$filename\" exists, chose another name" 1>&2
+	exit 1
+fi
+
+# Here we go
+if `touch $filename` > /dev/null; then
+	:
+else
+	echo "Could not create $filename" 1>&2
+	exit 1
+fi
+
+if `chmod +x $filename`; then
+	:
+else
+	echo "Could not change file mode to executable" 1>&2
+	exit 1
+fi
+
+cat << END > $filename
+$shebang
+
+############################################################
+# $filename_short
+#
+# $initials `date '+%Y%m%d'`
+############################################################
+
+
+END
+
+$editor +9 $filename
+
+exit $?
+
+# EOF
