@@ -72,7 +72,6 @@ expect {
 }
 # Logout
 expect {
-	
 	"250 $action*\r" { send_user "$expect_out(buffer)\n"; send "quit\r" }
 
 	"50*\r" {send_error "Error while trying to get status of watchdog on port $netio_port\nDevice returned $expect_out(buffer)\n"; exit 1}
