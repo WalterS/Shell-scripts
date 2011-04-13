@@ -10,7 +10,7 @@
 ############################################################
 ########## Changes ##########
 ####
-# Added bash, error messages will be printed tos stderr
+# Added bash, error messages will be printed to stderr
 # WS 20110413
 ####
 
