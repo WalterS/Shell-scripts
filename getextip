@@ -11,8 +11,6 @@
 host=localhost
 community=community
 
-current=`date '+%s'`
-
 # Get WAN IP address from SNMP
 active_int=`snmpwalk -v 2c -c $community $host IP-MIB::ipAdEntIfIndex|sed 's/ /@/g'`
 active_int_index=`echo $active_int | awk -F'@' 'BEGIN {RS=" "} {print $NF}'`
@@ -27,7 +25,6 @@ done
 # If ppp0 is not found, report it as down
 if [ "$ip" == "" ]; then
 	echo "External interface is down"
-	exit 0
 else
 	echo "External IP address is $ip"
 fi
