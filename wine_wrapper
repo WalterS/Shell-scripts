@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ############################################################
 # wine_wrapper
@@ -8,6 +8,10 @@
 #
 # WS 20100924
 ############################################################
+########## Changes ##########
+# Exitcode of called Windows program will be checked
+# WS 20110414
+####
 
 # Base directory
 base="/home/walter/.wine/drive_c/programme/"
@@ -18,6 +22,7 @@ prog_dir="/usr/local/bin"
 rc=0
 tag=
 prog=
+id=
 
 # Let's see how we were called
 case `basename $0` in
@@ -53,18 +58,27 @@ case `basename $0` in
 		cd $prog_dir
 		for tag in irfanview mp3tag foobar2000 getright atube_catcher avi_tags mp3directcut mp3merge emule totalcmd renamer adc vnc_listener pdfx; do
 			ln -s `basename $0` $tag
-			rc=`expr $rc + $?`
+			rc=((rc+$?))
 		done
 		exit $rc ;;
 		
 	*)
-		echo "Can't recognise my own name (`basename $0`), bailing out" 1>&2
+		echo "Couldn't recognise my own name (`basename $0`), bailing out" 1>&2
 		exit 2
 		;;
 esac
 
-wine ${base}${prog} > /dev/null 2>&1 &
-rc=$?
+wine ${base}${prog} &> /dev/null &
+
+# Check program status
+id=$!
+sleep 1
+if kill -0 $id ; then
+	:
+else
+	echo "Could not run ${base}${prog}" 1>&2
+	rc=99
+fi
 
 exit $rc
 
