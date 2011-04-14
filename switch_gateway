@@ -15,38 +15,53 @@
 # Escapes in awk corrected
 # WS 20110406
 ####
+# Errors are printed to stderr now
+# WS 20110414
+####
 
+# Two gateways
 gw1="1"
 gw2="10"
+
+# Common part of the gateways' IP address
 prefix="192.168.10."
-gw_new=
 gw_current=`route -n | awk '-F\\\.| +' '/^0\.0\.0\.0/ {print $8}'`
 
+rc=0
+gw_new=
+
+# Which gateway is active currently?
 if [ $gw_current -eq $gw1 -o $gw_current -eq $gw2 ]; then
 	echo "Found gw ${prefix}${gw_current}"
+
 	if [ $gw_current -eq $gw2 ]; then
 		gw_new=$gw1
 	else
 		gw_new=$gw2
 	fi
+
 else
-	echo "No valid gateway found"
+	echo "No valid gateway found" 1>&2
 	exit 2
 fi
 		
+## Here we go
 echo "Adding gw ${prefix}${gw_new}"
-route add default gw ${prefix}${gw_new}
-if [ $? -eq 0 ]; then
+if route add default gw ${prefix}${gw_new} ; then
 	echo "Deleting gw ${prefix}${gw_current}"
-	route delete default gw ${prefix}${gw_current}
+	if route delete default gw ${prefix}${gw_current} ; then
+		:
+	else
+		echo "Could not delete old default gateway ${prefix}${gw_current}" 1>&2
+		rc=1
 else
-	echo "Could not add new default gateway ${prefix}${gw_new}"
-	exit 1
+	echo "Could not add new default gateway ${prefix}${gw_new}" 1>&2
+	rc=1
 fi
 
 echo
 route -n
 
-exit $?
+exit $rc
 
 # EOF
