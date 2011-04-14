@@ -58,7 +58,7 @@ case `basename $0` in
 		cd $prog_dir
 		for tag in irfanview mp3tag foobar2000 getright atube_catcher avi_tags mp3directcut mp3merge emule totalcmd renamer adc vnc_listener pdfx; do
 			ln -s `basename $0` $tag
-			rc=((rc+$?))
+			rc=$((rc+$?))
 		done
 		exit $rc ;;
 		
