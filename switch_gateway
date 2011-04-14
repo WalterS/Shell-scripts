@@ -47,4 +47,6 @@ fi
 echo
 route -n
 
+exit $?
+
 # EOF
