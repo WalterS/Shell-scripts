@@ -9,7 +9,7 @@
 # WS 20100924
 ############################################################
 ########## Changes ##########
-# Exitcode of called Windows program will be checked
+# Exit code of called Windows program will be checked
 # WS 20110414
 ####
 
