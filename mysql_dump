@@ -43,7 +43,7 @@ END
 # We need a database user
 if [ $# -ne 1 ]; then
 	echo "Please provide a database user" 1>&2
-        usage
+        usage 1>&2
         exit 2
 fi
 

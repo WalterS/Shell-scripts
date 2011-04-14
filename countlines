@@ -8,28 +8,50 @@
 # 
 # WS 20050507
 ##################################################
+########## Changes ##########
+####
+# Pruned uneccessary "wc", improved error handling
+# WS 20110414
+####
 
 
 usage()
 {
 cat << END
 
-`basename $0` counts code lines in a given program
+"`basename $0`" counts code lines in a given program
 
 Usage: `basename $0` <script_file>
 
 END
 }
 
+# Error handling
 if [ $# -ne 1 ]; then
-        usage
-        exit 2
+	echo "No or to many parameters" 1>&2
+	usage 1>&2
+	exit 2
+else
+	file=$1
 fi
 
-allines=`wc -l $1 | awk '{print $1}'`
-codelines=`awk '! /[\/s][\/s]*$/ && !/[\/s]*#/ && !/^$/' $1  | wc -l |  awk '{print $1}'`
+if [ ! -f $file ]; then
+	echo "Could not find \"${file}\"" 1>&2
+	usage 1>&2
+fi
 
-echo "The script $1 has $allines lines from which $codelines lines are code"
+## Here we go
+# Count all lines
+allines=`wc -l $file | cut -d' ' -f 1`
+# Count only non-empty lines not beginning with "#"
+codelines=`awk '! /[\/s][\/s]*$/ && !/[\/s]*#/ && !/^$/ {n++} END {print n}' $file` 2> /dev/null
+
+if [ -z $codelines -o $codelines -le 0 ] 2> /dev/null; then
+	echo "Could not find any code line in $file" 1>&2
+	exit 1
+fi
+
+echo "The script \"$file\" has $allines lines from which $codelines lines are code"
 
 exit 0
 

@@ -54,7 +54,7 @@ if file $input 2>&1 | grep "PDF document" &> /dev/null; then
 	:
 else
 	echo "ERROR: $input is not a PDF document." 1>&2
-	usage
+	usage 1>&2
 	exit 1
 fi
 

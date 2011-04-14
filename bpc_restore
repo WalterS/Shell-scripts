@@ -96,7 +96,7 @@ if [ $# -gt 0 ];then
 	done
 else
 	echo "Error: No filter expression" 1>&2
-	usage
+	usage 1>&2
 	exit 1
 fi
 
