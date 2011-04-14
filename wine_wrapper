@@ -63,7 +63,7 @@ case `basename $0` in
 		exit $rc ;;
 		
 	*)
-		echo "Couldn't recognise my own name (`basename $0`), bailing out" 1>&2
+		echo "Couldn't recognise my own name (\"`basename $0`\"), bailing out" 1>&2
 		exit 2
 		;;
 esac
