@@ -18,7 +18,7 @@
 
 process=BackupPC_dump
 wait_time=5m
-log=/tmp/`basename $0`.log
+log=/tmp/$(basename $0).log
 
 start_time=$(date '+%s')
 counter=0
