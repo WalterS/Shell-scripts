@@ -17,8 +17,14 @@
 #
 # WS 20100224
 ############################################################
+########## Changes ##########
+####
+# Minor improvements
+# WS 20110415
+####
 
 rc=0
+result=
 
 # Check for parameters
 if [ "$1" == "" ]; then
@@ -41,9 +47,8 @@ hour=hours
 min=minutes
 
 # Uptime in fraction of days for MRTG
-#echo $t | awk -F'[. \t]+' '{print $1/3600/24"\n"0}'
 
-t=`echo $t | awk -F'.' '{print $1}'`
+t=`echo $t | cut -d '.' -f 1`
 d=`echo "$t / 86400" | $bc`
 if [ $d -eq 1 ]; then
         day=day
@@ -65,12 +70,12 @@ echo "$d $day, $h $hour and $m $min"
 }
 
 # Get statistics
-result=`awk '{gsub(":", " ")} /'"$interface"'/ {print $2,$10}' /proc/net/dev`
+result=`awk '/'"$interface"'/ {print $2,$10}' /proc/net/dev`
 
 # Check for errors
 if [ ! "$result" == "" ];then
-	if echo $result | grep "^[0-9]* [0-9]*$" > /dev/null; then
-		/bin/echo -e `echo "$result" | sed 's/ /\\\n/'`
+	if echo $result | egrep -q '^[0-9]+ +[0-9]+$' 2> /dev/null; then
+		/bin/echo -e `echo $result | sed 's/ /\\\n/'`
 		uptm
 	else
 		/bin/echo -e "0\n0\nError: Something is wrong with the result ($result), I expected two integers"
@@ -81,7 +86,7 @@ else
 	/bin/echo -e "0\n0"
 	uptm
 fi
-hostname | cut -d"." -f1
+hostname | cut -d '.' -f 1
 
 exit $rc
 
