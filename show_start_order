@@ -4,7 +4,8 @@
 # show_start_order
 # show_stop_order (symbolic link)
 #
-# Shows start or stop order of active daemons
+# Shows start or stop order of daemons conigured to start
+# in runlevel 3
 #
 # WS 20091219
 ############################################################
@@ -40,12 +41,12 @@ case `basename $0` in
 	show_stop_order)
 		column=0 ;;
 	*)
-		echo "Can't recognise my own name (\"`basename $0`\"), bailing out" 1>&2
+		echo "Couldn't recognise my own name (\"`basename $0`\"), bailing out" 1>&2
 		exit 2
 		;;
 esac
 
-awk -F":| +|\t+" '/chkconfig:/ { print $(NF-'"$column"')"#"FILENAME }' * | sort -n > $tmp
+awk -F':| +|\t+' '/chkconfig:/ { print $(NF-'"$column"')"#"FILENAME }' * | sort -n > $tmp
 started_daemons=`chkconfig --list | awk '/3:on/ {print $1}'`
 
 for d in $started_daemons ; do
