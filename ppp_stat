@@ -1,0 +1,88 @@
+#!/bin/sh
+
+############################################################
+# ppp_stat
+#
+# Prints NIC statistics from /proc/net/dev for MRTG
+# Defaults to ppp[0-9] but takes a parameter as well
+# Prints
+# <rx_bytes (in)>
+# <tx_bytes (out)>
+# [<uptime>|<error_message>]
+# <short_hostname>
+#
+# Using SNMP for ppp0 was unreliable because as the
+# interface is dropped and activated again the PPP entries
+# would be multiplicated
+#
+# WS 20100224
+############################################################
+
+rc=0
+
+# Check for parameters
+if [ "$1" == "" ]; then
+	interface="ppp[0-9]"
+else
+	interface="$1"
+fi
+
+# Print a neat human readable uptime
+uptm () {
+expr="/usr/bin/expr"
+awk="/bin/awk"
+echo="/bin/echo"
+bc="/usr/bin/bc"
+
+
+t=`cat /proc/uptime`
+day=days
+hour=hours
+min=minutes
+
+# Uptime in fraction of days for MRTG
+#echo $t | awk -F'[. \t]+' '{print $1/3600/24"\n"0}'
+
+t=`echo $t | awk -F'.' '{print $1}'`
+d=`echo "$t / 86400" | $bc`
+if [ $d -eq 1 ]; then
+        day=day
+fi
+
+t=`echo "$t % 86400" | $bc`
+h=`echo "$t / 3600" | $bc`
+if [ $h -eq 1 ]; then
+        hour=hour
+fi
+
+t=`echo "$t % 3600" | $bc`
+m=`echo "$t / 60" | $bc`
+if [ $m -eq 1 ]; then
+        min=minute
+fi
+
+echo "$d $day, $h $hour and $m $min"
+}
+
+# Get statistics
+result=`awk '{gsub(":", " ")} /'"$interface"'/ {print $2,$10}' /proc/net/dev`
+
+# Check for errors
+if [ ! "$result" == "" ];then
+	if echo $result | grep "^[0-9]* [0-9]*$" > /dev/null; then
+		/bin/echo -e `echo "$result" | sed 's/ /\\\n/'`
+		uptm
+	else
+		/bin/echo -e "0\n0\nError: Something is wrong with the result ($result), I expected two integers"
+		rc=1
+	fi
+		
+else
+	/bin/echo -e "0\n0"
+	uptm
+fi
+hostname | cut -d"." -f1
+
+exit $rc
+
+# EOF
