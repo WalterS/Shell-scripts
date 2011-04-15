@@ -3,8 +3,8 @@
 ############################################################
 # makeheader
 #
-# Writes a header for a new Perl, Bourne  or Bash script
-# and starts an (g)vim with the new file
+# Writes a header for a new Perl, Bourne or Bash script
+# and starts (g)vim with the new file
 #
 # WS 20091210
 ############################################################
