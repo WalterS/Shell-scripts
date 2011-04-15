@@ -1,0 +1,128 @@
+#!/bin/bash
+
+############################################################
+# changedate
+#
+# Changes file date relative to original date
+#
+# WS 20110415
+############################################################
+
+
+IFS=$'\n'
+rc=0
+old_date=
+new_date=
+new_date_p=
+arg=
+f=
+files=
+plural=
+gotdelta=
+
+usage () {
+cat << END
+
+"`basename $0`" changes the timestamp of a given file
+Usage: `basename $0` [-h|--help]|[filename] [-|+]seconds
+
+Examples:
+`basename $0` \*.bla 60     # Change date for *.bla + 60 seconds
+`basename $0` \*.bla -60    # Change date for *.bla - 60 seconds
+`basename $0` -h            # Print this help text
+
+
+File names containing blanks or wildcards ("*", "?")  must be enclosed in single quotes, or the wildcards must be masked with "\".
+
+END
+}
+
+if [ $# -eq 0 ]; then
+	echo "Please provide at least a delta time" 1>&2
+	usage 1>&2
+	exit 1
+fi
+
+for arg in "$@"; do
+	# Determine delta value, abort on multiple values
+	if eval echo \'$arg\' | egrep '^[+-]?[[:digit:]]+$' &>/dev/null; then
+		if [ ! -z $gotdelta ]; then
+			echo "Multiple delta values found, please provide only one delta value" 1>&2
+			usage 1>&2
+			exit 1
+		fi
+		delta=$arg
+		gotdelta=y
+	else
+		# If one of the parameters is "-h" or "--help", print usage
+		if eval echo \'$arg\' | egrep '^-h$|^--help$' &>/dev/null; then
+			usage
+			exit 0
+		else
+			# Collect file names and insert delimiter between the names
+			files="${files}@@++@@$arg"
+		fi
+	fi
+done
+
+# Checking...
+if [ -z $delta ]; then
+	echo "Please provide a time delta" 1>&2
+	usage 1>&2
+	exit 1
+fi
+
+if [ -z $files ]; then
+	echo "Please provide a file name" 1>&2
+	usage 1>&2
+	exit 1
+fi
+
+
+# Remove delimiter
+files=$(echo $files | sed 's/@@++@@/\n/g')
+
+for f in $files; do
+	# Does the file exist?
+	if [ ! -f "$f" ]; then
+		echo "Could not find \"$f\"" 1>&2
+		((rc++))
+		continue
+	fi
+	new_date=
+	# Get original date
+	old_date=$(ls -l --time-style="+%s" "$f" 2> /dev/null | awk -F'\\.| +' '{print $6}' 2> /dev/null)
+	if [ -z $old_date ]; then
+		echo "Could not determine original file date of \"$f\"" 1>&2
+		exit 1
+	fi
+	# Compute new date
+	new_date=$(($old_date + $delta))
+	if [ -z $new_date ]; then
+		echo "Could not determine new file date" 1>&2
+		exit 1
+	fi
+	new_date_p=$(date -d @$new_date "+%d.%m.%Y %H:%M:%S")
+	new_date=$(date -d @$new_date "+%Y%m%d%H%M.%S")
+
+	# Set new date
+	if touch -t $new_date "$f"; then
+		echo "Date of $f has been changed from $(date -d @$old_date '+%d.%m.%Y %H:%M:%S') to $new_date_p"
+	else
+		echo "Could not change date of $f" 1>&2
+		((rc++))
+	fi
+done
+
+# Check for errors
+if [ $rc -ne 0 ]; then
+	if [ $rc -gt 1 ]; then
+		plural="s"
+	fi
+	echo "Could not change date of $rc file$plural" 1>&2
+	rc=1
+fi
+
+exit $rc
+
+# EOF
