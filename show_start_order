@@ -4,7 +4,7 @@
 # show_start_order
 # show_stop_order (symbolic link)
 #
-# Shows start or stop order of daemons conigured to start
+# Shows start or stop order of daemons configured to start
 # in runlevel 3
 #
 # WS 20091219
