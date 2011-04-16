@@ -1,14 +1,17 @@
 #!/bin/bash
 
 ############################################################
-# shutdown
+# shutdown.sh
 #
 # Shuts machine down only if $process is not running
 # Checks every $wait_time minutes/seconds
 #
+# Needs /usr/local/bin/stopvms and /usr/local/bin/netio_wd
+#
 # WS 20091211
 ############################################################
 ########## Changes ##########
+####
 # Added script for Netio
 # WS 20110316
 ####
@@ -19,9 +22,11 @@
 # WS 20110410
 ####
 
+########### Configure here ###########
 process=BackupPC_dump
 wait_time=5m
 log=/tmp/`basename $0`.log
+######### Configuration end ##########
 
 start_time=`date '+%s'`
 counter=0
