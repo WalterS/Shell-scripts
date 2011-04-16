@@ -15,16 +15,33 @@
 # Added error statement on exit and colourised messages
 # WS 20110311
 ####
+# Added root check
+# WS 20110417
+####
 
+
+# Make sure we're run by root
+if [ "$(id -u)" != "0" ]; then
+	echo "This script must be run as root" 1>&2
+	exit 1
+fi
 
 items=("CPU FAN" "CHASSIS FAN" "CPU Temperature" "MB Temperature")
 mrtg_key=(fans fans cpu_temp temp_mb)
 mrtg_cfg=/etc/mrtg/mrtg.cfg
 
 IFS=$'\n'
-temp=/tmp/`basename $0`.tmp
+temp=/tmp/$(basename $0).tmp
 rc=0
 found_errors=0
+item=
+mrtg_key=
+oids=
+oid_temp=
+target_fans=
+target_cpu_temp=
+target_temp_mb=
+
 
 cleanup () {
 rm -f $temp &>/dev/null
@@ -80,10 +97,10 @@ else
 fi
 
 if [ $rc -gt 0 ]; then
-	echo -e "\e[01;32m`basename $0` exited with errors\e[00m"
+	echo -e "\e[01;32m$(basename $0) exited with errors\e[00m"
+	rc=1
 fi
 
 exit $rc
 
 # EOF
-
