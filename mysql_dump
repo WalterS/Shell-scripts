@@ -8,6 +8,7 @@
 # WS 20100101
 ############################################################
 #### Changes ####
+####
 # Excluded database "information_schema"
 # WS 20100908
 ####
@@ -16,8 +17,11 @@
 ####
 
 
+########### Configure here ###########
 backupdir=/var/lib/mysql/backup
 user=$1
+######### Configuration end ##########
+
 tmp=/tmp/`basename $0`.$$
 
 rc=0
