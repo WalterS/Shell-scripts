@@ -19,16 +19,20 @@
 # WS 20110414
 ####
 
+########### Configure here ###########
 # Two gateways
 gw1="1"
 gw2="10"
 
 # Common part of the gateways' IP address
 prefix="192.168.10."
-gw_current=`route -n | awk '-F\\\.| +' '/^0\.0\.0\.0/ {print $8}'`
+######### Configuration end ##########
 
 rc=0
 gw_new=
+
+# Get current gateway
+gw_current=`route -n | awk '-F\\\.| +' '/^0\.0\.0\.0/ {print $8}'`
 
 # Which gateway is active currently?
 if [ $gw_current -eq $gw1 -o $gw_current -eq $gw2 ]; then
@@ -45,11 +49,11 @@ else
 	exit 2
 fi
 		
-## Here we go
+#### Here we go
 echo "Adding gw ${prefix}${gw_new}"
-if route add default gw ${prefix}${gw_new} ; then
+if route add default gw ${prefix}${gw_new} > /dev/null 2>&1; then
 	echo "Deleting gw ${prefix}${gw_current}"
-	if route delete default gw ${prefix}${gw_current} ; then
+	if route delete default gw ${prefix}${gw_current} > /dev/null 2>&1; then
 		:
 	else
 		echo "Could not delete old default gateway ${prefix}${gw_current}" 1>&2

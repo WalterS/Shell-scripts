@@ -7,6 +7,7 @@
 # WS 20110216
 ###############################################################
 ########## Changes ##########
+####
 # Errors are printed to stderr now
 # WS 20110407
 ####
@@ -27,7 +28,7 @@ END
 
 }
 
-#### Error correction
+#### Error handling
 # Check if gs exists
 if which gs &> /dev/null; then
 	:
@@ -38,7 +39,7 @@ fi
 
 # Do we have a file name?
 if [ -z "$input" ]; then
-	usage
+	usage 1>&2
 	exit 1
 
 fi

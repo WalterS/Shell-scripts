@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ############################################################
 # show_start_order
@@ -10,20 +10,24 @@
 # WS 20091219
 ############################################################
 ########## Changes ##########
+####
 # Errors are printed to stderr now
 # WS 20110408
 ####
+# sh -> bash, no temporary files
+# WS 20110416
+####
 
 
-tmp=/tmp/`basename $0`.$$
-tmp1=/tmp/`basename $0`.1$$
+LC_ALL=C
 column=1
+rc=0
 d=
+d1=
+list=
+all_daemons=
 started_daemons=
 
-
-# Remove temporary file on exit
-trap 'rm -f $tmp $tmp1 > /dev/null 2>&1' 0
 # Set exit code to 2 on abort
 trap 'exit 2' 1 2 3 15
 
@@ -34,26 +38,38 @@ else
 	exit 2
 fi
 
-#Let's see how we were called
-case `basename $0` in
+# Let's see how we were called
+case $(basename $0) in
 	show_start_order)
 		column=1 ;;
 	show_stop_order)
 		column=0 ;;
 	*)
-		echo "Couldn't recognise my own name (\"`basename $0`\"), bailing out" 1>&2
+		echo "Couldn't recognise my own name (\"$(basename $0)\"), bailing out" 1>&2
 		exit 2
 		;;
 esac
 
-awk -F':| +|\t+' '/chkconfig:/ { print $(NF-'"$column"')"#"FILENAME }' * | sort -n > $tmp
-started_daemons=`chkconfig --list | awk '/3:on/ {print $1}'`
+# Get start/stop priority of all files in /etc/init.d
+all_daemons=$(awk -F':| +|\t+' '/chkconfig:/ { print $(NF-'"$column"'), FILENAME }' *)
+
+# Get all daemons configured for starting/stopping in runlevel 3
+started_daemons=$(chkconfig --list | awk '/3:on/ {print $1}')
 
 for d in $started_daemons ; do
-	grep $d $tmp | sed 's/#/ /' >> $tmp1
+	d1=$d
+	d=$(echo "$all_daemons" | grep $d'$')
+
+	if [ "$d" == "\n" -o "$d" == "" ]; then
+		echo "Testing \"$d1\" failed" 1>&2
+		rc=1
+	fi
+
+	list="${list}${d}\n"
 done
 
-sort -n $tmp1
+echo -e $list | sed -e '/^\w*$/d' | sort -n
 
-exit 0
+exit $rc
+
 # EOF

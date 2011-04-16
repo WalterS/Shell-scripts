@@ -8,13 +8,17 @@
 # WS 20091103
 ############################################################
 ########## Changes ##########
+####
 # Cosmetic changes
 # WS 20110407
 ####
 
 
+########### Configure here ###########
 # Where to store the image
 dir=/home/walter/doc/weather
+# Base name, picture will be ${dir}/${name}.jpg and log file
+# ${dir}/${name}.log
 name=satellite
 
 # Website to use for scraping
@@ -30,6 +34,7 @@ occurrence=0
 
 # Debug switch
 debug=0
+######### Configuration end ##########
 
 rc=0
 
@@ -56,7 +61,7 @@ else
 fi
 
 ############################################################
-# Here we go
+#### Here we go
 
 # Function for clean exit
 cleanup () {
