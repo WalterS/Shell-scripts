@@ -9,8 +9,12 @@
 # WS 20100924
 ############################################################
 ########## Changes ##########
+####
 # Exit code of called Windows program will be checked
 # WS 20110414
+####
+# Silenced execution check
+# WS 20110416
 ####
 
 # Base directory
@@ -64,8 +68,7 @@ case `basename $0` in
 		
 	*)
 		echo "Couldn't recognise my own name (\"`basename $0`\"), bailing out" 1>&2
-		exit 2
-		;;
+		exit 2 ;;
 esac
 
 wine ${base}${prog} &> /dev/null &
@@ -73,7 +76,7 @@ wine ${base}${prog} &> /dev/null &
 # Check program status
 id=$!
 sleep 1
-if kill -0 $id ; then
+if kill -0 $id &> /dev/null; then
 	:
 else
 	echo "Could not run ${base}${prog}" 1>&2
