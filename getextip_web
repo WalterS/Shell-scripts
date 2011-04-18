@@ -11,13 +11,44 @@
 # Errors are printed to stderr now
 # WS 20110407
 ####
+# Made the script more portable, it uses either wget or curl
+# and takes into account different versions of awk (can be run
+# on a Mac now)
+# WS 20110418
+####
 
+
+# Look for awk
+if ! awk=$(which awk); then
+	echo "Could not find awk, bailing out." 1>&2
+	exit 1
+else
+	# If we have the GNU version, we need --reinterval
+	if $awk --version | grep -q GNU; then
+		awk="$awk --re-interval"
+	fi 
+fi
+	
+
+# Look for wget or curl
+if which wget &>/dev/null; then
+	get="wget -q -O - -t 1 -T 10"
+else
+	if which curl &>/dev/null; then
+		get="curl -s --retry 1 --connect-timeout 10"
+	else
+		echo "Couldn't find wget or curl, bailing out." 1>&2
+		exit 1
+	fi
+fi
+
+#### Here we go
 # Get IP address
-ip_address=$(wget -q -O - -t 1 -T 10 http://checkip.dyndns.org)
+ip_address=$($get http://checkip.dyndns.org)
 
 # If the first site is not responding within 10 seconds, try another
 if [ $? -ne 0 ]; then
-	ip_address=$(wget -q -O - -t 1 -T 10 http://whatismyip.org/automation/n09230945.asp)
+	ip_address=$($get http://whatismyip.org/automation/n09230945.asp)
 	if  [ $? -ne 0 ]; then
 		echo "Error: No external website is reachable, unable to obtain external IP address" 1>&2
 		exit 1
@@ -28,7 +59,7 @@ else
 fi
 
 # Test obtained string
-ip_test=$(echo "$ip_address" | awk --re-interval -F'.' '$0 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/ && $1 <=255 && $2 <= 255 && $3 <= 255 && $4 <= 255')
+ip_test=$(echo "$ip_address" | $awk -F'.' '$0 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/ && $1 <=255 && $2 <= 255 && $3 <= 255 && $4 <= 255')
 if [ -z $ip_test ]; then
 	echo "Error: Obtained string \"$ip_address\" is not a valid IP address" 1>&2
 	exit 1
