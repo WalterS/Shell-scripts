@@ -9,6 +9,12 @@
 #
 # WS 20110329
 ############################################################
+########## Changes ##########
+####
+# Removed the need for sed and test
+# WS 20110419
+####
+
 
 IFS=$'\n'
 counter=0
@@ -27,34 +33,33 @@ service_list=$(chkconfig --list | sort | awk '/0:/ && /3:/ {print $1}')
 
 # Check service status
 for service in $service_list; do
-	# Services with no output
+	# Services with no or more complex output
 	case $service in
 		netfs)
-			service $service status &> /dev/null
-			if [ ! $? -eq 0 ]; then
-				running_services="$running_services#$service"
+			if service $service status &> /dev/null; then
+				running_services="${running_services}${service}\n"
 				((counter++))
 			fi
 			;;
 		network)
-			service network status | grep -qA 1 active  2>/dev/null | egrep -q 'lo|eth' &>/dev/null
-			if [ ! $? -eq 0 ]; then
-				running_services="$running_services#$service"
+			if service network status | grep -A 1 active  2>/dev/null | egrep -q 'lo|eth' 2>/dev/null; then
+				running_services="${running_services}${service}\n"
 				((counter++))
 			fi
 			;;
 	esac
-	service $service status 2> /dev/null | egrep -q 'is running|DROP|enabled|are registered|are loaded'
-	if [ $? -eq 0 ] 2> /dev/null; then
-		running_services="$running_services#$service"
+	if service $service status 2> /dev/null | egrep -q 'is running|DROP|enabled|are registered|are loaded'; then
+		running_services="${running_services}${service}\n"
 		((counter++))
 	fi
 done
 
 # Print found services
-if [ ! -z $running_services ]; then
+if [ $counter -gt 0 ]; then
 	echo "$counter services are running:"
-	echo $running_services | sed 's/\#/\n/g'
+	# Remove last "\n"
+	running_services=${running_services%\\n}
+	echo -e $running_services
 else
 	echo "Could not find any running service"
 fi
