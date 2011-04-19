@@ -17,6 +17,10 @@
 # WS 20110418
 ####
 
+awk=
+get=
+ip_address=
+ip_test=
 
 # Look for awk
 if ! awk=$(which awk); then
