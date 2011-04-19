@@ -16,6 +16,12 @@
 # on a Mac now)
 # WS 20110418
 ####
+# Used showip.net instead of dyndns.org because dyndns.org
+# returns the local instead of the external IP address when
+# using a proxy
+# WS 20110420
+####
+
 
 awk=
 get=
@@ -36,7 +42,7 @@ fi
 
 # Look for wget or curl
 if which wget &>/dev/null; then
-	get="wget -q -O - -t 1 -T 10"
+	get="wget --no-cache -q -O - -t 1 -T 10"
 else
 	if which curl &>/dev/null; then
 		get="curl -s --retry 1 --connect-timeout 10"
@@ -48,21 +54,27 @@ fi
 
 #### Here we go
 # Get IP address
-ip_address=$($get http://checkip.dyndns.org)
+#ip_address=$($get http://checkip.dyndns.org)
 
-# If the first site is not responding within 10 seconds, try another
-if [ $? -ne 0 ]; then
-	ip_address=$($get http://whatismyip.org/automation/n09230945.asp)
-	if  [ $? -ne 0 ]; then
+if ip_address=$($get http://showip.net/ 2>/dev/null); then
+	# Extract IP address from HTML
+	ip_address=$(echo "$ip_address" | awk -F\" '/check_ip/ && /value=/ {print $(NF-1)}')
+else
+	if ip_address=$($get http://www.whatismyip.org/automation/n09230945.asp 2>/dev/null); then
+		# Extract IP address from HTML
+		ip_address=$(echo "$ip_address" | awk -F'<|: +' '{print $(NF-2)}')
+	else
 		echo "Error: No external website is reachable, unable to obtain external IP address" 1>&2
 		exit 1
 	fi
-else
-	# Extract IP address from HTML
-	ip_address=$(echo "$ip_address" | awk -F'<|: +' '{print $(NF-2)}')
 fi
 
 # Test obtained string
+if [ -z $ip_address ];then
+	echo "Could not obtain external IP address, got an empty string" 1>&2
+	exit 1
+fi
+
 ip_test=$(echo "$ip_address" | $awk -F'.' '$0 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/ && $1 <=255 && $2 <= 255 && $3 <= 255 && $4 <= 255')
 if [ -z $ip_test ]; then
 	echo "Error: Obtained string \"$ip_address\" is not a valid IP address" 1>&2
