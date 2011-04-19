@@ -34,7 +34,7 @@ for vm in $vms; do
 	echo "Shutting down $name"
 
 # Construct command line:
-# If we're run as root, we need execute $vboxmanage with sudo
+# If we're run as root, we need execute $vboxmanage with su
 if [ $root -eq 1 ]; then
 	local savestate="su - $user -c \"$vboxmanage controlvm $uid savestate\""
 	local acpi="su - $user -c \"$vboxmanage controlvm $uid acpipowerbutton\""
