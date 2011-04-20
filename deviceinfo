@@ -20,7 +20,7 @@ cat << END
 
 "$basename" prints udev informations about a given device
 
-Usage:   $basename <full_path_to_device>
+Usage:   $basename <device>
 Example: $basename /dev/sda
 
 If the device name doesn't start with "/dev/" it will automatically prefixed with "/dev/"
