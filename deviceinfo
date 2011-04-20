@@ -1,0 +1,73 @@
+#!/bin/bash
+
+############################################################
+# deviceinfo
+#
+# Print udev informations about a given device
+# Tested on Fedora 14, Ubuntu 10.10, Red Hat EL/CentOS 5.5
+#
+# WS 20110420
+############################################################
+
+rc=0
+device=
+query=
+
+usage()
+{
+local basename=$(basename $0)
+cat << END
+
+"$basename" prints udev informations about a given device
+
+Usage:   $basename <full_path_to_device>
+Example: $basename /dev/sda
+
+If the device name doesn't start with "/dev/" it will automatically prefixed with "/dev/"
+END
+}
+
+# We will process only one parameter
+if [ $# -ne 1 ]; then
+	usage 1>&2
+	exit 1
+else
+	device=$1
+fi
+
+# If the device doesn't start with "/dev/" prefix it with "/dev/"
+if echo $device | grep -qv '^/dev/'; then
+	device=${device/#/\/dev\/}
+fi
+
+# Does the device exist?
+if [ ! -e $device ]; then
+	echo "Error: Could not find $device" 1>&2
+	exit 2
+fi
+
+
+# Get device info with either "udevinfo" or "udevadm"
+if query=$(which udevinfo 2> /dev/null); then
+	$query -a -p $(udevinfo -q path -n $device)
+	rc=$?
+else
+
+	if query=$(which udevadm 2> /dev/null); then
+		$query info --attribute-walk --name=$device 
+		rc=$?
+	else
+		echo "Error: Couldn't find udevadm or udevinfo in path" 1>&2
+		exit 2
+	fi
+fi
+
+rc=$((rc+$?))
+
+if [ $rc -ne 0 ]; then
+	rc=1
+fi
+
+exit $rc
+
+# EOF
