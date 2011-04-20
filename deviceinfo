@@ -13,8 +13,7 @@ rc=0
 device=
 query=
 
-usage()
-{
+usage() {
 local basename=$(basename $0)
 cat << END
 
