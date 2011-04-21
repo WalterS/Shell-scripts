@@ -23,29 +23,30 @@
 ####
 
 
-awk=
+AWK=
+CURL=
+WGET=
 get=
 ip_address=
 ip_test=
 
 # Look for awk
-if ! awk=$(which awk); then
+if ! AWK=$(which awk 2>/dev/null); then
 	echo "Could not find awk, bailing out." 1>&2
 	exit 1
 else
 	# If we have the GNU version, we need --reinterval
-	if $awk --version | grep -q GNU; then
-		awk="$awk --re-interval"
+	if $AWK --version | grep -q GNU; then
+		AWK="$AWK --re-interval"
 	fi 
 fi
-	
 
 # Look for wget or curl
-if which wget &>/dev/null; then
-	get="wget --no-cache -q -O - -t 1 -T 10"
+if WGET=$(which wget 2>/dev/null); then
+	get="$WGET --no-cache -q -O - -t 1 -T 10"
 else
-	if which curl &>/dev/null; then
-		get="curl -s --retry 1 --connect-timeout 10"
+	if CURL=$(which curl 2>/dev/null); then
+		get="$CURL -s --retry 1 --connect-timeout 10"
 	else
 		echo "Couldn't find wget or curl, bailing out." 1>&2
 		exit 1
@@ -54,8 +55,6 @@ fi
 
 #### Here we go
 # Get IP address
-#ip_address=$($get http://checkip.dyndns.org)
-
 if ip_address=$($get http://showip.net/ 2>/dev/null); then
 	# Extract IP address from HTML
 	ip_address=$(echo "$ip_address" | awk -F\" '/check_ip/ && /value=/ {print $(NF-1)}')
@@ -75,7 +74,7 @@ if [ -z $ip_address ];then
 	exit 1
 fi
 
-ip_test=$(echo "$ip_address" | $awk -F'.' '$0 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/ && $1 <=255 && $2 <= 255 && $3 <= 255 && $4 <= 255')
+ip_test=$(echo "$ip_address" | $AWK -F'.' '$0 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/ && $1 <=255 && $2 <= 255 && $3 <= 255 && $4 <= 255')
 if [ -z $ip_test ]; then
 	echo "Error: Obtained string \"$ip_address\" is not a valid IP address" 1>&2
 	exit 1
