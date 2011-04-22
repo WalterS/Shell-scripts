@@ -12,6 +12,9 @@
 # Errors are printed to stderr now
 # WS 20110408
 ####
+# Excluded currency directory
+# WS 20110422
+####
 
 dir=/usr/share/locale
 
@@ -26,7 +29,7 @@ size_1=`du -s -b | awk '{print $1}'`
 rc=0
 diff=0
 
-find . -maxdepth 1 ! -name . ! -name en  ! -name en_GB  ! -name en_US  ! -name 'en@*' ! -name de ! -name de_DE ! -name default ! -name locale.alias ! -name all_languages ! -name l10n ! -name bin | xargs rm -rf '{}' > /dev/null
+find . -maxdepth 1 ! -name . ! -name en  ! -name en_GB  ! -name en_US  ! -name 'en@*' ! -name de ! -name de_DE ! -name default ! -name locale.alias ! -name all_languages ! -name l10n ! -name bin ! -name currency | xargs rm -rf '{}' > /dev/null
 
 rc=$?
 
