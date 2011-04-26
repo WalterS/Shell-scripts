@@ -51,16 +51,15 @@ fi
 if [ -f "$input" ]; then
 	if [ ! -r "$input" ]; then
 		echo "Error: Could not read ${input}." 1>&2
+		exit 1
 	fi
 else
-	echo "Error: Could not find PDF file ${input}." 1>&2
+	echo "Error: Could not find file ${input}." 1>&2
 	exit 1
 fi
 
 # Is the file a PDF document?
-if file $input 2>&1 | grep "PDF document" &> /dev/null; then
-	:
-else
+if ! file $input 2>&1 | grep "PDF document" &> /dev/null; then
 	echo "Error: $input is not a PDF document." 1>&2
 	usage 1>&2
 	exit 1
