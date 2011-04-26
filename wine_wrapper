@@ -10,12 +10,17 @@
 ############################################################
 ########## Changes ##########
 ####
+# Error message is sent to stderr, proper exit code,
+# used Bash-internal arithmetics instead of bc
+# WS 20110408
+####
 # Exit code of called Windows program will be checked
 # WS 20110414
 ####
 # Silenced execution check
 # WS 20110416
 ####
+
 
 # Base directory
 base="/home/walter/.wine/drive_c/programme/"
