@@ -10,7 +10,7 @@
 ############################################################
 ########## Changes ##########
 ####
-# Error message is sent to stderr, proper exit code,
+# Error messages will be sent to stderr, proper exit code,
 # used Bash-internal arithmetics instead of bc
 # WS 20110408
 ####
