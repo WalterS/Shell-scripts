@@ -11,6 +11,9 @@
 # Errors are printed to stderr now
 # WS 20110407
 ####
+# Corrected test for file
+# WS 20110426
+####
 
 input=$1
 rc=0
@@ -45,8 +48,12 @@ if [ -z "$input" ]; then
 fi
 
 # Does the file exist?
-if [ ! -x "$input" ]; then
-	echo "ERROR: Could not find PDF file ${input}." 1>&2
+if [ -f "$input" ]; then
+	if [ -r "$input" ]; then
+		echo "Error: Could not read ${input}." 1>&2
+	fi
+else
+	echo "Error: Could not find PDF file ${input}." 1>&2
 	exit 1
 fi
 
@@ -54,7 +61,7 @@ fi
 if file $input 2>&1 | grep "PDF document" &> /dev/null; then
 	:
 else
-	echo "ERROR: $input is not a PDF document." 1>&2
+	echo "Error: $input is not a PDF document." 1>&2
 	usage 1>&2
 	exit 1
 fi
@@ -62,7 +69,7 @@ fi
 # Setting target file name
 output="`dirname ${input}`/`basename $input .pdf`_unlocked.pdf"
 if [ "$output" == "" -o "$output" == "$input" ]; then
-	echo "ERROR: Could not set output file name. Are \"basename\" and \"dirname\" installed and in path?" 1>&2
+	echo "Error: Could not set output file name. Are \"basename\" and \"dirname\" installed and in path?" 1>&2
 	exit 1
 fi
 
