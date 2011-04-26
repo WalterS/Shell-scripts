@@ -49,7 +49,7 @@ fi
 
 # Does the file exist?
 if [ -f "$input" ]; then
-	if [ -r "$input" ]; then
+	if [ ! -r "$input" ]; then
 		echo "Error: Could not read ${input}." 1>&2
 	fi
 else
