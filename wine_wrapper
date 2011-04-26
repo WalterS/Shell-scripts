@@ -20,6 +20,9 @@
 # Silenced execution check
 # WS 20110416
 ####
+# Added test for file existence before creating links
+# WS 20110425
+####
 
 
 # Base directory
@@ -66,8 +69,10 @@ case $(basename $0) in
 	wine_wrapper)
 		cd $prog_dir
 		for tag in irfanview mp3tag foobar2000 getright atube_catcher avi_tags mp3directcut mp3merge emule totalcmd renamer adc vnc_listener pdfx; do
-			ln -s $(basename $0) $tag
-			rc=$((rc+$?))
+			if [ ! -e "$tag" ]; then
+				ln -s $(basename $0) $tag
+				rc=$((rc+$?))
+			fi
 		done
 		exit $rc ;;
 		
