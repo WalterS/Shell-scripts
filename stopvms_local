@@ -18,7 +18,7 @@ name=
 uid=
 
 if ! [ -x "`which $vboxmanage 2>/dev/null`" ]; then
-	echo "Could not find command VBoxManage"
+	echo "Could not find command VBoxManage" 1>&2
 	exit 1
 fi
 
