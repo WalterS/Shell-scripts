@@ -1,0 +1,147 @@
+#!/bin/bash
+
+############################################################
+# mtu_discovery
+#
+# Discovers MTU size by sending unfragmented pings with
+# increasing size to a given address
+#
+# WS 20110428
+############################################################
+
+# Default ping target
+address=google.com
+# Default MTU size
+mtu=1250
+
+
+usage( ) {
+cat << END
+$(basename $0) discovers MTU size by sending unfragmented pings with increasing size to a given address
+
+Usage: $(basename $0) [<start_MTU>|<ping_target>|-v]|[-h|--help]
+
+If either <start_MTU> or <ping_target> is missing, we will use $mtu and $address, -v is for verbose output.
+Mutiple integers will be ignored with the MTU size set to the first integer argument.
+-h and --help will print this help text.
+END
+}
+
+verbose=0
+operand='+'
+step=100
+qualifier='-ne'
+run=1
+mtu_d=
+address_d=
+
+check_args () {
+local arg_n=0
+local LC_ALL=C
+local set_mtu=0
+local set_address=0
+
+for arg in $*; do
+	# If the argument is an integer, set MTU size and ignore
+	if [[ "$arg" =~ ^[0-9]+$ && $set_mtu != 1 ]] 2> /dev/null; then
+		mtu=$arg
+		local set_mtu=1
+		((arg_n++))
+	else
+		if [[ "$arg" == "-v" ]] 2> /dev/null; then
+			verbose=1
+			((arg_n++))
+		elif [[ "$arg" =~ ^(-h|--help)$ ]] 2> /dev/null; then
+			usage
+			exit
+		else
+			address=$arg
+			if [[ "$arg" =~ ^[0-9]+$ ]] 2> /dev/null;then
+				echo "Error: Got an integer (\"$arg\") as ping target" >&2
+				exit 1
+			fi
+			local set_address=1
+			((arg_n++))
+		fi
+	fi
+done
+
+if [ $# -ne $arg_n ]; then
+	echo "Error: Something went wrong while processing your command-line arguments" >&2
+	exit 1
+fi
+
+if [ $((set_mtu+set_address)) -lt 2 ]; then
+	if [ $set_mtu -eq 0 ]; then
+		mtu_d="(default)"
+	fi
+	if [ $set_address -eq 0 ]; then
+		address_d="(default)"
+	fi
+fi
+
+}
+
+
+# Check number of arguments
+if [ $# -le 3 ]; then
+	check_args $*
+else
+	echo "Error: Too many arguments" >&2
+	usage >&2
+	exit 1
+fi
+
+# Preventing empty or negative values fot MTU size
+if [ $mtu -lt 0 ]; then
+	echo "Setting MTU size to 0"
+	mtu=0
+fi
+
+cat <<END#
+Ping target: $address $address_d
+MTU starting size: $mtu $mtu_d
+
+END#
+
+# Check if ping target is reachable
+if ! ping -n -c 1 -q $address &> /dev/null; then
+	echo "Error: $address is not reachable" >&2
+	exit 1
+fi
+
+
+#### Here we go
+while [ "$run" == "1" ]; do
+	ping -q -c 1 -n -M do -s $mtu $address &> /dev/null
+	# Switching search direction
+	if [ $? $qualifier 0 ]; then
+		if [ "$operand" == "-" ]; then
+			operand='+'
+		else
+			operand='-'
+		fi
+
+		if [ "$qualifier" == "-eq" ]; then
+			qualifier='-ne'
+		else
+			qualifier='-eq'
+		fi
+		# Decreasing search steps
+		step=$((step/10))
+
+		if [ $step -le 0 ]; then
+			run=0
+		fi
+
+	else
+		if [ $verbose -eq 1 ]; then
+			echo "Testing MTU size: $mtu"
+		fi
+		mtu=$((mtu${operand}$step))
+	fi
+done
+
+echo  "MTU size to $address is $(($mtu - 1))"
+
+# EOF
