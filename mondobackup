@@ -1,0 +1,88 @@
+#!/bin/bash
+
+############################################################
+# mondobackup
+# Writes an ISO backup with mondoarchive to $backup_dir
+# Uses RAM (tmpfs) for temprorary files
+#
+# WS 20110423
+############################################################
+
+
+########### Configure here ###########
+# Excluded directories, use "|" as separator
+excluded_dirs="/home|/var/cache|/var/ftp/pub/music|/backup|/data|/mnt|/media|/tmp"
+
+# Where to write the ISO images
+backup_dir="/backup"
+
+# Size of temporary partition, set it lower than actual RAM size
+ram_size="12G"
+
+# ISO size
+iso_size="4600m"
+######### Configuration end ##########
+
+temp="/mnt/mondo.$$"
+
+# Function for cleaning up
+cleanup () {
+if mount | grep -q $temp; then
+	if ! umount $temp &> /dev/null; then
+		echo "Could not unmount temporary directory" 1>&2
+		exit 2
+	fi
+fi
+if [ -d $temp ]; then
+	if ! 'rm' -rf $temp &> /dev/null; then
+		echo "Could not remove temporary directory" 1>&2
+		exit 2
+	fi
+fi
+}
+
+# We want to exit cleanly
+trap 'cleanup' 0
+trap 'echo "Program aborted"; exit 3' 1 2 3 15
+
+## Checking
+# Where is our executable?
+if ! which mondoarchive &> /dev/null; then
+	echo "Could not find \"mondoarchive\", bailing out" 1>&2
+	exit 1
+fi
+
+# Does backup directory exist and is readable?
+if [ -d "$backup_dir" ]; then
+	if [ !  -w "$backup_dir" ]; then
+		echo "Backup directory is not writeable, bailing out" 1>&2
+		exit 1
+	fi
+else
+	echo "Could not find backup directory, bailing out" 1>&2
+	exit 1
+fi
+
+# Create temporary directory
+if ! mkdir $temp &> /dev/null; then
+	echo "Could not create temporary directory, bailing out" 1>&2
+	exit 1
+fi
+
+# Mount tmpfs to temporary directory
+if ! mount -t tmpfs -o size=${ram_size},nr_inodes=4k,mode=700 tmpfs $temp &> /dev/null; then
+	echo "Could not mount temporary directory, bailing out" 1>&2
+	exit 1
+fi
+
+#### Here we go
+if mondoarchive -i -O -E "$excluded_dirs" -N -d $backup_dir -s $iso_size -7 -G -T $temp -S $temp -p $(hostname -s)_$(date '+%Y%m%d'); then
+	'mv' /var/cache/mindi/mondorescue.iso $backup_dir
+else
+	echo "mondoarchive exited with error" 1>&2
+	exit 1
+fi
+
+exit 0
+
+# EOF
