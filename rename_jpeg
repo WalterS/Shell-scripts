@@ -1,0 +1,83 @@
+#!/bin/bash
+
+############################################################
+# rename_jpeg
+#
+# Renames JPEGs according to their creation date, which is
+# read from Exif data by exiftool
+#
+# WS 20110504
+############################################################
+
+# If exiftool is not in path, configure here
+exiftool=
+
+
+# Do we have exiftool in path?
+if [ -z $exiftool ]; then
+	if ! exiftool=$(which exiftool 2>/dev/null); then
+		echo "Could not find exiftool" >&2
+		exit 1
+	fi
+else
+	if [ ! -x $exiftool ]; then
+		echo "Could not execute $exiftool" >&2
+		exit 1
+	fi
+fi
+
+rc=0
+file=
+jpg=
+new_filename=
+
+# Rename files to lower case
+if ls *JPG &>/dev/null; then
+	for file in *.JPG; do
+		if ! 'mv' -i "$file" "$(/bin/echo -n "$file" | tr [:upper:] [:lower:])"; then
+			echo "Could not rename $file to lower case" >&2
+			((rc++))
+		fi
+	done
+fi
+
+if [ $rc -gt 0 ]; then
+	echo "Error while renaming files to lower case." >&2
+	exit 1
+fi
+
+if ! ls *.jpg &>/dev/null; then
+	echo "No JPEG files found" >&2
+	exit 1
+fi
+
+for jpg in *.jpg; do
+        # Read creation date from Exif header
+	if ! new_filename=$($exiftool -S -s -d "%Y%m%d_%H%M%S" -createdate $jpg 2>/dev/null); then
+		echo "Could read creation date from $jpg" >&2
+		((rc++))
+		continue
+	fi
+	# Better redundant than sorry
+	if [ -z $new_filename ]; then
+		echo "Could read creation date from $jpg" >&2
+		((rc++))
+		continue
+	fi
+
+	# Rename file and set file date to creation date
+        echo "Renaming $jpg to $new_filename.jpg"
+        if ! $exiftool -q '-filemodifydate<createdate' -d "%Y%m%d_%H%M%S.%%e" '-filename<createdate' $jpg 2>/dev/null; then
+		((rc++))
+		echo "Could not rename $jpg" >&2
+	fi
+done
+
+if [ $rc -gt 0 ]; then
+	echo "Error while renaming files." >&2
+	exit 1
+fi
+
+exit 0
+
+# EOF
