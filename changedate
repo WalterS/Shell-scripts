@@ -7,6 +7,11 @@
 #
 # WS 20110415
 ############################################################
+######## Changes ########
+####
+# Only one call of "basename" in usage ()
+# WS 20110519
+####
 
 
 IFS=$'\n'
@@ -21,15 +26,16 @@ plural=
 gotdelta=
 
 usage () {
+myname=$(basename $0)
 cat << END
 
-"`basename $0`" changes the timestamp of a given file
-Usage: `basename $0` [-h|--help]|[filename] [-|+]seconds
+"$myname" changes the timestamp of a given file
+Usage: $myname [-h|--help]|[filename] [-|+]seconds
 
 Examples:
-`basename $0` \*.bla 60     # Change date for *.bla + 60 seconds
-`basename $0` \*.bla -60    # Change date for *.bla - 60 seconds
-`basename $0` -h            # Print this help text
+$myname \*.bla 60     # Change date for *.bla + 60 seconds
+$myname \*.bla -60    # Change date for *.bla - 60 seconds
+$myname -h            # Print this help text
 
 
 File names containing blanks or wildcards ("*", "?")  must be enclosed in single quotes, or the wildcards must be masked with "\".
