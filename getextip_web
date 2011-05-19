@@ -48,7 +48,7 @@ else
 	if CURL=$(which curl 2>/dev/null); then
 		get="$CURL -s --retry 1 --connect-timeout 10"
 	else
-		echo "Couldn't find wget or curl, bailing out." 1>&2
+		echo "Could not find wget or curl, bailing out." 1>&2
 		exit 1
 	fi
 fi
