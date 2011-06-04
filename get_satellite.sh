@@ -98,7 +98,7 @@ ERROR: Could not download satellite image
 URL: $location
 END
 	((rc++))
-	cleanup
+	exit 1
 fi
 
 if [ $? -eq 0 -a -s ${dir}/${name}1.jpg ]; then
@@ -117,7 +117,7 @@ if [ "$location" == "" ]; then
 ERROR: Could not get URL for satellite image
 END
 	((rc++))
-	cleanup
+	exit 1
 fi
 
 # Test whether picture has changed
@@ -130,7 +130,7 @@ if [ "$timestamp" == "" ]; then
 ERROR: Could not extract timestamp from URL for comparison
 END
 	((rc++))
-	cleanup
+	exit 1
 fi
 
 # Download only if picture has changed and when there is no error in log file
@@ -150,8 +150,6 @@ else
 	getimage
 fi
 
-cleanup
-
-exit 99
+exit 0
 
 # EOF
