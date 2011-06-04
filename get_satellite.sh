@@ -12,6 +12,9 @@
 # Cosmetic changes
 # WS 20110407
 ####
+# Added trap
+# WS 20110604
+####
 
 
 ########### Configure here ###########
