@@ -69,6 +69,10 @@ rm -f ${dir}/${name}1.jpg &> /dev/null
 exit $rc
 }
 
+# We want to exit cleanly
+trap 'cleanup' 0
+trap 'echo "Program aborted"; exit 3' 1 2 3 15
+
 # Header for log file
 header () {
 cat << END
