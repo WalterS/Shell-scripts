@@ -39,6 +39,10 @@ occurrence=0
 debug=0
 ######### Configuration end ##########
 
+# We want to exit cleanly
+trap 'rm -f ${dir}/${name}1.jpg &> /dev/null' 0
+trap 'echo "Program aborted"; exit 3' 1 2 3 15
+
 rc=0
 
 # Some basic tests
@@ -65,16 +69,6 @@ fi
 
 ############################################################
 #### Here we go
-
-# Function for clean exit
-cleanup () {
-rm -f ${dir}/${name}1.jpg &> /dev/null
-exit $rc
-}
-
-# We want to exit cleanly
-trap 'cleanup' 0
-trap 'echo "Program aborted"; exit 3' 1 2 3 15
 
 # Header for log file
 header () {
