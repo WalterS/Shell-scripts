@@ -1,0 +1,47 @@
+#!/bin/bash
+
+############################################################
+# check_time
+#
+# Checks time against external server and adjusts if
+# deviation is greater than $deltamax
+#
+# WS 20110702
+############################################################
+
+########### Configure here ###########
+# Limit for time deviation
+delta_max=300
+# Time server
+server=0.de.pool.ntp.org
+######### Configuration end ##########
+
+rc=0
+delta=
+
+# Get time delta from external server
+delta=`ntpdate -q $server 2> /dev/null | awk '/adjust/ {print int($(NF-1))}' | sed 's/-//'`
+
+if [ -z $delta ]; then
+	echo "Error: No time server could be reached" >&2
+	exit 1
+else
+	# If time delta grater than $delta_max, adjust time
+	if [ $delta -ge $delta_max ]; then
+		/sbin/service ntpd stop
+		rc=$((rc+$?))
+		/usr/sbin/ntpdate $server
+		rc=$((rc+$?))
+		/sbin/service ntpd start
+		rc=$((rc+$?))
+	fi
+fi
+
+if [ $rc -ne 0 ]; then
+	echo "Errors encountered" >&2
+	exit 1
+fi
+
+exit 0
+
+# EOF
