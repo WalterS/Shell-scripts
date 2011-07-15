@@ -8,11 +8,9 @@
 ###############################################################
 ########## Changes ##########
 ####
-# Errors are printed to stderr now
-# WS 20110407
-####
-# Corrected test for file
-# WS 20110426
+# Added quotes to $output/$input so that filenames with blanks
+# can be handled
+# WS 20110715
 ####
 
 input=$1
@@ -31,49 +29,48 @@ END
 
 }
 
-#### Error handling
+#### Error correction
 # Check if gs exists
 if which gs &> /dev/null; then
 	:
 else
-	echo "\"gs\" is not in path (${PATH}). You might want to install the package \"ghostscript\" or check your PATH settings." 1>&2
+	echo "\"gs\" is not in path (${PATH}). You might want to install the package \"ghostscript\" or check your PATH settings."
 	exit 1
 fi
 
 # Do we have a file name?
 if [ -z "$input" ]; then
-	usage 1>&2
+	usage
 	exit 1
 
 fi
 
 # Does the file exist?
-if [ -f "$input" ]; then
-	if [ ! -r "$input" ]; then
-		echo "Error: Could not read ${input}." 1>&2
-		exit 1
-	fi
+if [ -r "$input" ]; then
+	:
 else
-	echo "Error: Could not find file ${input}." 1>&2
+	echo "ERROR: Could not find PDF file ${input}."
 	exit 1
 fi
 
 # Is the file a PDF document?
-if ! file $input 2>&1 | grep "PDF document" &> /dev/null; then
-	echo "Error: $input is not a PDF document." 1>&2
-	usage 1>&2
+if file "$input" 2>&1 | grep "PDF document" &> /dev/null; then
+	:
+else
+	echo "ERROR: $input is not a PDF document."
+	usage
 	exit 1
 fi
 
 # Setting target file name
-output="`dirname ${input}`/`basename $input .pdf`_unlocked.pdf"
+output="`dirname \"${input}\"`/`basename "$input" .pdf`_unlocked.pdf"
 if [ "$output" == "" -o "$output" == "$input" ]; then
-	echo "Error: Could not set output file name. Are \"basename\" and \"dirname\" installed and in path?" 1>&2
+	echo "ERROR: Could not set output file name. Are \"basename\" and \"dirname\" installed and in path?"
 	exit 1
 fi
 
 # We'll remove the output file if the progam is aborted
-trap 'rm -rf ${output} &> /dev/null; echo "Programm aborted" 1>&2; exit 99' 1 2 3 15
+trap 'rm -rf "${output}" &> /dev/null; echo "Programm aborted"; exit 99' 1 2 3 15
 
 #### Here we go
 echo "Writing to ${output}..."
