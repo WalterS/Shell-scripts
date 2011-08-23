@@ -1,0 +1,73 @@
+#!/bin/bash
+
+################################################################################
+# check_port
+# 
+# Checks if a given TCP/UDP port is open
+# Useful if you have neither telnet nor nmap at hand
+#
+# WS 20110823
+################################################################################
+
+my_name=$(basename $0)
+port=
+host=
+proto=
+proto_display=
+
+usage () {
+cat <<END
+
+$my_name checks for open TCP/UDP ports
+Usage:     $my_name -h <hostname> -p <prot_number> -s [tcp|udp]
+Example:   $my_name -h localhost -p 22 -s tcp 
+           Check if port 22 (SSH) is open on localhost
+You have to be root to execute this script
+END
+}
+
+# Make sure we're run by root
+if [ "$(id -u)" != "0" ]; then
+	echo "This script must be run as root" >&2
+	exit 1
+fi
+
+# Check input
+OPTERR=0
+while getopts  "h:p:s:" flag; do
+	case $flag in
+		h)
+			host="$OPTARG" ;;
+		p)
+			port="$OPTARG" ;;
+		s)	proto=$(echo "$OPTARG" | tr [[:upper:]] [[:lower:]])
+			if [ "$proto" != "tcp" -a "$proto" != "udp" ]; then
+				echo "Error: Invalid protocol, either specify \"tcp\" or \"udp\"" >&2
+				usage >&2
+				exit 1
+			else
+				proto_display=$(echo $proto | tr [[:lower:]] [[:upper:]])
+			fi ;;
+		*)
+			echo "Error: Wrong parameter" >&2
+			usage >&2
+			exit 1 ;;
+	esac
+done
+
+if [ -z "$host" -o -z "$port" -o -z "$proto" ]; then
+	echo "Error: Need more input" >&2
+	usage >&2
+	exit 1
+fi
+
+
+if (echo >/dev/tcp/${host}/$port) &>/dev/null; then
+	echo "$proto_display port $port on $host is open"
+else
+	echo "$proto_display port $port on $host is closed"
+fi
+
+exit
+
+# EOF
