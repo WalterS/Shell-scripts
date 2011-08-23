@@ -3,7 +3,7 @@
 ############################################################
 # mondobackup
 # Writes an ISO backup with mondoarchive to $backup_dir
-# Uses RAM (tmpfs) for temprorary files
+# Uses RAM (tmpfs) for temporary files
 #
 # WS 20110423
 ############################################################
