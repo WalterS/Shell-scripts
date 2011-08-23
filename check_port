@@ -8,7 +8,7 @@
 # WS 20110823
 ################################################################################
 ########## Changes ##########
-# Added test for port range
+# Added test for port range, fixed identation
 # WS 20110823
 ####
 
@@ -108,11 +108,11 @@ fi
 # Only with eval we're able to use range argument in variable
 for p in `eval echo $port_list`; do
 
-if (echo >/dev/tcp/${host}/$p) &>/dev/null; then
-	echo "$proto_display port $p on $host is open"
-else
-	echo "$proto_display port $p on $host is closed"
-fi
+	if (echo >/dev/tcp/${host}/$p) &>/dev/null; then
+		echo "$proto_display port $p on $host is open"
+	else
+		echo "$proto_display port $p on $host is closed"
+	fi
 
 done
 
