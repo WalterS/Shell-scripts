@@ -71,9 +71,13 @@ fi
 # Ports are expected either as single value, separated by blank or two values separated by hyphen
 
 # Remove trailing blanks
+
+# Only numbers, blanks and hyphen allowed
 port=$(echo $port | sed 's/ +$//')
 if ! echo $port | egrep -q '^([1-9]( |-)?)*[0-9]$'; then
-	port_format_error
+	echo "Error: Only numbers, blanks and hyphen allowed in port value" >&2
+	usage >&2
+	exit 1
 fi
 
 # Only one hyphen allowed
