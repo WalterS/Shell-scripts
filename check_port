@@ -4,10 +4,14 @@
 # check_port
 # 
 # Checks if a given TCP/UDP port is open
-# Useful if you have neither telnet nor nmap at hand
 #
 # WS 20110823
 ################################################################################
+########## Changes ##########
+# Added test for port range
+# WS 20110823
+####
+
 
 my_name=$(basename $0)
 port=
@@ -20,8 +24,10 @@ cat <<END
 
 $my_name checks for open TCP/UDP ports
 Usage:     $my_name -h <hostname> -p <prot_number> -s [tcp|udp]
-Example:   $my_name -h localhost -p 22 -s tcp 
-           Check if port 22 (SSH) is open on localhost
+Example:   $my_name -h localhost -p "22 25" -s tcp 
+           Check if ports 22 (SSH) and 25 (SMTP) are open on localhost
+
+Ports are expected either as single value, separated by blanks or two values separated by hyphen
 You have to be root to execute this script
 END
 }
@@ -61,13 +67,55 @@ if [ -z "$host" -o -z "$port" -o -z "$proto" ]; then
 	exit 1
 fi
 
+# Check for port list
+# Ports are expected either as single value, separated by blank or two values separated by hyphen
 
-if (echo >/dev/tcp/${host}/$port) &>/dev/null; then
-	echo "$proto_display port $port on $host is open"
-else
-	echo "$proto_display port $port on $host is closed"
+# Remove trailing blanks
+port=$(echo $port | sed 's/ +$//')
+if ! echo $port | egrep -q '^([1-9]( |-)?)*[0-9]$'; then
+	port_format_error
 fi
 
-exit
+# Only one hyphen allowed
+if echo $port | egrep -q '\-.*-.*'; then
+	echo "Error: More than one hyphen in port list" >&2
+	usage >&2
+	exit 1
+else
+	# No mixing of hyphen and blanks
+	if echo $port | egrep -q '\-.*( ).*|( ).*-.*'; then
+		echo "Error: Hyphen and blank in port list" >&2
+		usage >&2
+		exit 1
+	fi
+fi
+
+# Second value in port range has to be greater than first value
+if echo $port | egrep -q '\-'; then
+	if ! echo $port | awk -F'-' '{if ($1>=$2) exit 1}' &> /dev/null; then
+		echo "Error: First value in port range is greater or equal than second value" >&2
+		usage >&2
+		exit 1
+	else
+		# Build list argument
+		port_list=$(echo $port | awk -F'-' '{print "{"$1".."$2"}"}')
+	fi
+else
+	port_list="$port"
+fi
+
+#### Here we go
+# Only with eval we're able to use range argument in variable
+for p in `eval echo $port_list`; do
+
+if (echo >/dev/tcp/${host}/$p) &>/dev/null; then
+	echo "$proto_display port $p on $host is open"
+else
+	echo "$proto_display port $p on $host is closed"
+fi
+
+done
+
+exit 0
 
 # EOF
