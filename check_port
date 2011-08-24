@@ -11,6 +11,9 @@
 # Added test for port range, fixed identation
 # WS 20110823
 ####
+# Removed root test, improved error handling
+# WS 20110824
+####
 
 
 my_name=$(basename $0)
@@ -28,15 +31,8 @@ Example:   $my_name -h localhost -p "22 25" -s tcp
            Check if ports 22 (SSH) and 25 (SMTP) are open on localhost
 
 Ports are expected either as single value, separated by blanks or two values separated by hyphen
-You have to be root to execute this script
 END
 }
-
-# Make sure we're run by root
-if [ "$(id -u)" != "0" ]; then
-	echo "This script must be run as root" >&2
-	exit 1
-fi
 
 # Check input
 OPTERR=0
@@ -54,6 +50,11 @@ while getopts  "h:p:s:" flag; do
 			else
 				proto_display=$(echo $proto | tr [[:lower:]] [[:upper:]])
 			fi ;;
+		\?)
+			shift $(($OPTIND - 2))
+			echo "Error: Invalid option: \"$1\"" >&2
+			usage >&2
+			exit 1 ;;
 		*)
 			echo "Error: Wrong parameter" >&2
 			usage >&2
@@ -67,19 +68,19 @@ if [ -z "$host" -o -z "$port" -o -z "$proto" ]; then
 	exit 1
 fi
 
-# Check for port list
-# Ports are expected either as single value, separated by blank or two values separated by hyphen
 
 # Remove trailing blanks
+port=$(echo $port | sed 's/ +$//')
 
 # Only numbers, blanks and hyphen allowed
-port=$(echo $port | sed 's/ +$//')
 if ! echo $port | egrep -q '^([1-9]( |-)?)*[0-9]$'; then
 	echo "Error: Only numbers, blanks and hyphen allowed in port value" >&2
 	usage >&2
 	exit 1
 fi
 
+# Check for port list
+# Ports are expected either as single value, separated by blank or two values separated by hyphen
 # Only one hyphen allowed
 if echo $port | egrep -q '\-.*-.*'; then
 	echo "Error: More than one hyphen in port list" >&2
