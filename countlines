@@ -9,7 +9,7 @@
 ##################################################
 ########## Changes ##########
 ####
-# Pruned uneccessary "wc", improved error handling
+# Pruned unnecessary "wc", improved error handling
 # WS 20110414
 ####
 
@@ -18,7 +18,7 @@ usage()
 {
 cat << END
 
-"`basename $0`" counts code lines in a given program
+"`basename $0`" counts code lines in a given script
 
 Usage: `basename $0` <script_file>
 
@@ -43,7 +43,7 @@ fi
 # Count all lines
 allines=`wc -l $file | cut -d' ' -f 1`
 # Count only non-empty lines not beginning with "#"
-codelines=`awk '! /[\/s][\/s]*$/ && !/[\/s]*#/ && !/^$/ {n++} END {print n}' $file` 2> /dev/null
+codelines=`awk 'BEGIN {n=0} !/[\/s][\/s]*$/ && !/[\/s]*#/ && !/^$/ {n++} END {print n}' $file` 2> /dev/null
 
 if [ -z $codelines -o $codelines -le 0 ] 2> /dev/null; then
 	echo "Could not find any code line in $file" 1>&2
