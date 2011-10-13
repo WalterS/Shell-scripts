@@ -14,6 +14,10 @@
 # Removed the need for sed and test
 # WS 20110419
 ####
+####
+# Replaced multiple greps with one sed
+# WS 20111013
+####
 
 
 IFS=$'\n'
@@ -23,8 +27,8 @@ running_services=
 service=
 
 # Make sure we're run by root
-if [ "$(id -u)" != "0" ]; then
-	echo "This script must be run as root" 1>&2
+if [[ "$(id -u)" != 0 ]]; then
+	echo "This script must be run as root" >&2
 	exit 1
 fi
 
@@ -42,7 +46,7 @@ for service in $service_list; do
 			fi
 			;;
 		network)
-			if service network status | grep -A 1 active  2>/dev/null | egrep -q 'lo|eth' 2>/dev/null; then
+			if [[ -n "$( service network status | sed -n '/active/,/lo|eth/ {/eth\|lo/p}' /tmp/bla1)" ]]; then
 				running_services="${running_services}${service}\n"
 				((counter++))
 			fi
@@ -55,7 +59,7 @@ for service in $service_list; do
 done
 
 # Print found services
-if [ $counter -gt 0 ]; then
+if [[ $counter -gt 0 ]]; then
 	echo "$counter services are running:"
 	# Remove last "\n"
 	running_services=${running_services%\\n}
