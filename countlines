@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ##################################################
 # countlines
@@ -12,45 +12,48 @@
 # Pruned unnecessary "wc", improved error handling
 # WS 20110414
 ####
+####
+# sh -> bash, cleared awk expression
+# WS 20111013
+####
 
 
-usage()
-{
-cat << END
+usage() {
+cat <<END
 
-"`basename $0`" counts code lines in a given script
+"${0##*/}" counts code lines in a given script
 
-Usage: `basename $0` <script_file>
+Usage: ${0##*/} <script_file>
 
 END
 }
 
 # Error handling
-if [ $# -ne 1 ]; then
-	echo "No or to many parameters" 1>&2
-	usage 1>&2
+if [[ $# != 1 ]]; then
+	echo "No or to many parameters" >&2
+	usage >&2
 	exit 2
 else
-	file=$1
+	FILE=$1
 fi
 
-if [ ! -f $file ]; then
-	echo "Could not find \"${file}\"" 1>&2
-	usage 1>&2
+if [[ ! -f "$FILE" ]]; then
+	echo "Could not find \"${FILE}\"" >&2
+	usage >&2
 fi
 
 ## Here we go
 # Count all lines
-allines=`wc -l $file | cut -d' ' -f 1`
+ALLINES=$(wc -l $FILE | cut -d' ' -f 1)
 # Count only non-empty lines not beginning with "#"
-codelines=`awk 'BEGIN {n=0} !/[\/s][\/s]*$/ && !/[\/s]*#/ && !/^$/ {n++} END {print n}' $file` 2> /dev/null
+CODELINES=$(awk 'BEGIN {n=0} !/^[[:space:]]*$/ && !/^[[:space:]]*#/ {n++} END {print n}' $FILE) 2> /dev/null
 
-if [ -z $codelines -o $codelines -le 0 ] 2> /dev/null; then
-	echo "Could not find any code line in $file" 1>&2
+if [[ -z "$CODELINES" || $CODELINES -le 0 ]]; then
+	echo "Could not find any code line in $FILE" >&2
 	exit 1
 fi
 
-echo "The script \"$file\" has $allines lines from which $codelines lines are code"
+echo "The script \"$FILE\" has $ALLINES lines from which $CODELINES lines are code"
 
 exit 0
 
