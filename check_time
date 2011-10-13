@@ -8,6 +8,12 @@
 #
 # WS 20110702
 ############################################################
+########## Changes ##########
+####
+# Added root check, removed service restart
+# WS 20111013
+####
+
 
 ########### Configure here ###########
 # Limit for time deviation
@@ -19,27 +25,27 @@ server=0.de.pool.ntp.org
 rc=0
 delta=
 
-# Get time delta from external server
-delta=`ntpdate -q $server 2> /dev/null | awk '/adjust/ {print int($(NF-1))}' | sed 's/-//'`
+if [[ "$(id -u)" != 0 ]]; then
+	echo "This script must be run as root" >&2
+	exit 1
+fi
 
-if [ -z $delta ]; then
+
+# Get time delta from external server
+delta=$(ntpdate -q $server 2> /dev/null | awk '/adjust/ {gsub(/[-+]/,""); if ($(NF-1)~/^[0-9]+\.*[0-9]*$/) {print int($(NF-1))}}')
+
+if [[ -z "$delta" ]]; then
 	echo "Error: No time server could be reached" >&2
 	exit 1
 else
 	# If time delta grater than $delta_max, adjust time
-	if [ $delta -ge $delta_max ]; then
-		/sbin/service ntpd stop
-		rc=$((rc+$?))
-		/usr/sbin/ntpdate $server
-		rc=$((rc+$?))
-		/sbin/service ntpd start
-		rc=$((rc+$?))
+	if [[ $delta -ge $delta_max ]]; then
+		if ! sntp -K /dev/null -s $server &> /dev/null; then
+			echo "Could not set time" >&2
+			exit 1
+		fi
 	fi
-fi
-
-if [ $rc -ne 0 ]; then
-	echo "Errors encountered" >&2
-	exit 1
+	
 fi
 
 exit 0
