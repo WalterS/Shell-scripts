@@ -29,13 +29,13 @@ temp="/mnt/mondo.$$"
 cleanup () {
 if mount | grep -q $temp; then
 	if ! umount $temp &> /dev/null; then
-		echo "Could not unmount temporary directory" 1>&2
+		echo "Could not unmount temporary directory" >&2
 		exit 2
 	fi
 fi
-if [ -d $temp ]; then
+if [[ -d "$temp" ]]; then
 	if ! 'rm' -rf $temp &> /dev/null; then
-		echo "Could not remove temporary directory" 1>&2
+		echo "Could not remove temporary directory" >&2
 		exit 2
 	fi
 fi
@@ -48,30 +48,30 @@ trap 'echo "Program aborted"; exit 3' 1 2 3 15
 ## Checking
 # Where is our executable?
 if ! which mondoarchive &> /dev/null; then
-	echo "Could not find \"mondoarchive\", bailing out" 1>&2
+	echo "Could not find \"mondoarchive\", bailing out" >&2
 	exit 1
 fi
 
 # Does backup directory exist and is readable?
-if [ -d "$backup_dir" ]; then
+if [[ -d "$backup_dir" ]]; then
 	if [ !  -w "$backup_dir" ]; then
-		echo "Backup directory is not writeable, bailing out" 1>&2
+		echo "Backup directory is not writeable, bailing out" >&2
 		exit 1
 	fi
 else
-	echo "Could not find backup directory, bailing out" 1>&2
+	echo "Could not find backup directory, bailing out" >&2
 	exit 1
 fi
 
 # Create temporary directory
 if ! mkdir $temp &> /dev/null; then
-	echo "Could not create temporary directory, bailing out" 1>&2
+	echo "Could not create temporary directory, bailing out" >&2
 	exit 1
 fi
 
 # Mount tmpfs to temporary directory
 if ! mount -t tmpfs -o size=${ram_size},nr_inodes=4k,mode=700 tmpfs $temp &> /dev/null; then
-	echo "Could not mount temporary directory, bailing out" 1>&2
+	echo "Could not mount temporary directory, bailing out" >&2
 	exit 1
 fi
 
@@ -79,7 +79,7 @@ fi
 if mondoarchive -i -O -E "$excluded_dirs" -N -d $backup_dir -s $iso_size -7 -G -T $temp -S $temp -p $(hostname -s)_$(date '+%Y%m%d'); then
 	'mv' /var/cache/mindi/mondorescue.iso $backup_dir
 else
-	echo "mondoarchive exited with error" 1>&2
+	echo "mondoarchive exited with error" >&2
 	exit 1
 fi
 

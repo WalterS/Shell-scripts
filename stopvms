@@ -20,7 +20,7 @@ vm=
 name=
 uid=
 
-if ! [ -x "`which $vboxmanage 2>/dev/null`" ]; then
+if ! [[ -x "$(which $vboxmanage 2>/dev/null)" ]]; then
 	echo "Could not find command VBoxManage"
 	exit 1
 fi
@@ -35,7 +35,7 @@ for vm in $vms; do
 
 # Construct command line:
 # If we're run as root, we need execute $vboxmanage with su
-if [ $root -eq 1 ]; then
+if [[ $root = 1 ]]; then
 	local savestate="su - $user -c \"$vboxmanage controlvm $uid savestate\""
 	local acpi="su - $user -c \"$vboxmanage controlvm $uid acpipowerbutton\""
 	local poweroff="su - $user -c \"$vboxmanage controlvm $uid poweroff\""
@@ -47,11 +47,11 @@ fi
 	# Running escalated shutdown tries, from saving state to poweroff
 	# "eval" is needed because our command string contains quotes
 	if ! eval $savestate 2> /dev/null; then
-		echo "Could not save state of VM $name, trying ACPI shutdown" 1>&2
+		echo "Could not save state of VM $name, trying ACPI shutdown" >&2
 		if ! eval $acpi 2> /dev/null; then
-			echo "ACPI shutdown for VM $name failed, trying poweroff" 1>&2
+			echo "ACPI shutdown for VM $name failed, trying poweroff" >&2
 			if ! eval $poweroff 2> /dev/null; then
-				echo "Could not shut down VM $name, UID $uid" 1>&2
+				echo "Could not shut down VM $name, UID $uid" >&2
 				((rc++))
 			else
 				echo "Poweroff of VM $name successful"
@@ -67,10 +67,10 @@ done
 }
 
 # Check for root rights
-if [ "$(id -u)" != "0" ]; then
+if [[ "$(id -u)" != "0" ]]; then
 	# Get list of running VMs
 	vms=$($vboxmanage list runningvms | awk -F' +|{|}' '{print $1,$(NF-1)}' 2>/dev/null)
-	if [ "$vms" == "" ]; then
+	if [[ -z "$vms" ]]; then
 		echo "Nothing to do"
 		exit 0
 	else
@@ -80,14 +80,14 @@ else
 	root=1
 	# Search for users running VMs
 	users=$(ps -ef | awk '(/VBoxHeadless/ || /VirtualBox/) && /-startvm/ && $8 !~/^awk$/ {print $1}' | sort -u)
-	if [ "$users" == "" ]; then
+	if [[ -z "$users" ]]; then
 		echo "Nothing to do"
 		exit 0
 	else
 		# List VMs run by $user
 		for user in $users ; do
 			vms=$(su - $user -c "$vboxmanage list runningvms" | awk -F' +|{|}' '{print $1,$(NF-1)}' 2>/dev/null)
-			if [ ! "$vms" == "" ]; then
+			if [[ -n "$vms" ]]; then
 				echo "Stopping VMs for user ${user}:"
 				switchoff
 			fi

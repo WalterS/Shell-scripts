@@ -16,7 +16,7 @@
 ####
 
 
-my_name=$(basename $0)
+my_name=${0##*/}
 port=
 host=
 proto=
@@ -51,7 +51,7 @@ while getopts  "h:p:s:" flag; do
 				proto_display=$(echo $proto | tr [[:lower:]] [[:upper:]])
 			fi ;;
 		\?)
-			shift $(($OPTIND - 2))
+			shift $((OPTIND-2))
 			echo "Error: Invalid option: \"$1\"" >&2
 			usage >&2
 			exit 1 ;;
@@ -62,7 +62,7 @@ while getopts  "h:p:s:" flag; do
 	esac
 done
 
-if [ -z "$host" -o -z "$port" -o -z "$proto" ]; then
+if [[ -z "$host" || -z "$port" || -z "$proto" ]]; then
 	echo "Error: Need more input" >&2
 	usage >&2
 	exit 1
@@ -111,7 +111,7 @@ fi
 
 #### Here we go
 # Only with eval we're able to use range argument in variable
-for p in `eval echo $port_list`; do
+for p in $(eval echo $port_list); do
 
 	if (echo >/dev/tcp/${host}/$p) &>/dev/null; then
 		echo "$proto_display port $p on $host is open"

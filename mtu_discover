@@ -16,11 +16,11 @@ address=google.com
 mtu=1250
 
 
-usage( ) {
+usage() {
 cat << END
-$(basename $0) discovers MTU size by sending unfragmented pings with increasing size to a given address
+${0##*/} discovers MTU size by sending unfragmented pings with increasing size to a given address
 
-Usage: $(basename $0) [<start_MTU>|<ping_target>|-v]|[-h|--help]
+Usage: ${0##*/} [<start_MTU>|<ping_target>|-v]|[-h|--help]
 
 If either <start_MTU> or <ping_target> is missing, we will use $mtu and $address, -v is for verbose output.
 Mutiple integers will be ignored with the MTU size set to the first integer argument.
@@ -36,7 +36,7 @@ run=1
 mtu_d=
 address_d=
 
-check_args () {
+check_args() {
 local arg_n=0
 local LC_ALL=C
 local set_mtu=0
@@ -67,16 +67,16 @@ for arg in $*; do
 	fi
 done
 
-if [ $# -ne $arg_n ]; then
+if [[ $# != $arg_n ]]; then
 	echo "Error: Something went wrong while processing your command-line arguments" >&2
 	exit 1
 fi
 
-if [ $((set_mtu+set_address)) -lt 2 ]; then
-	if [ $set_mtu -eq 0 ]; then
+if [[ $((set_mtu+set_address)) -lt 2 ]]; then
+	if [[ $set_mtu = 0 ]]; then
 		mtu_d="(default)"
 	fi
-	if [ $set_address -eq 0 ]; then
+	if [[ $set_address = 0 ]]; then
 		address_d="(default)"
 	fi
 fi
@@ -85,7 +85,7 @@ fi
 
 
 # Check number of arguments
-if [ $# -le 3 ]; then
+if [[ $# -le 3 ]]; then
 	check_args $*
 else
 	echo "Error: Too many arguments" >&2
@@ -94,7 +94,7 @@ else
 fi
 
 # Preventing empty or negative values fot MTU size
-if [ $mtu -lt 0 ]; then
+if [[ $mtu -lt 0 ]]; then
 	echo "Setting MTU size to 0"
 	mtu=0
 fi
@@ -113,17 +113,17 @@ fi
 
 
 #### Here we go
-while [ "$run" == "1" ]; do
+while [[ "$run" = 1 ]]; do
 	ping -q -c 1 -n -M do -s $mtu $address &> /dev/null
 	# Switching search direction
 	if [ $? $qualifier 0 ]; then
-		if [ "$operand" == "-" ]; then
+		if [[ "$operand" == "-" ]]; then
 			operand='+'
 		else
 			operand='-'
 		fi
 
-		if [ "$qualifier" == "-eq" ]; then
+		if [[ "$qualifier" = "-eq" ]]; then
 			qualifier='-ne'
 		else
 			qualifier='-eq'
@@ -131,18 +131,18 @@ while [ "$run" == "1" ]; do
 		# Decreasing search steps
 		step=$((step/10))
 
-		if [ $step -le 0 ]; then
+		if [[ $step -le 0 ]]; then
 			run=0
 		fi
 
 	else
-		if [ $verbose -eq 1 ]; then
+		if [[ $verbose = 1 ]]; then
 			echo "Testing MTU size: $mtu"
 		fi
 		mtu=$((mtu${operand}$step))
 	fi
 done
 
-echo  "MTU size to $address is $(($mtu - 1))"
+echo  "MTU size to $address is $(($mtu-1))"
 
 # EOF

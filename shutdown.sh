@@ -25,10 +25,10 @@
 ########### Configure here ###########
 process=BackupPC_dump
 wait_time=5m
-log=/tmp/`basename $0`.log
+log=/tmp/${0##*/}.log
 ######### Configuration end ##########
 
-start_time=`date '+%s'`
+start_time=$(date '+%s')
 counter=0
 end_time=
 exec_time=0
@@ -37,28 +37,26 @@ prc=
 
 
 # Check if log file is accessible
-if touch $log; then
-	:
-else
+if ! touch $log &> /dev/null; then
 	echo "Could not access log file $log"
 	exit 1
 fi
 
 # Check periodically if process is running
-while [ $is_running -eq 1 ]; do
-	prc=`/usr/local/bin/psgrep "${process}" | awk '!/BackupPC -d/ && ! /BackupPC_trashClean/'`
-	if [ "$prc" == "" ]; then
+while [[ $is_running = 1 ]]; do
+	prc=$(/usr/local/bin/psgrep "${process}" | awk '!/BackupPC -d/ && ! /BackupPC_trashClean/')
+	if [[ -z "$prc" ]]; then
 		is_running=0
 	else
-		counter=`expr $counter + 1`
+		((counter++))
 		/bin/sleep $wait_time
 	fi
 done
 
 # Compute run time
-end_time=`date '+%s'`
+end_time=$(date '+%s')
 
-if [ $counter -gt 0 ]; then
+if [[ $counter -gt 0 ]]; then
 	exec_time=$(($(($end_time-$start_time))/60))
 fi
 
@@ -74,7 +72,7 @@ echo "Turning off watchdog on NETIO" >> $log
 # Write log file footer
 cat << END >> $log
 Shutting down machine after $counter waiting cycle(s) ($exec_time minutes).
-`date '+%Y%m%d %H:%M'`
+$(date '+%Y%m%d %H:%M')
 _____________________________________________________________________________________
 
 END

@@ -37,7 +37,7 @@ if AWK=$(which awk 2>/dev/null); then
 		AWK="$AWK --re-interval"
 	fi 
 else
-	echo "Could not find awk, bailing out." 1>&2
+	echo "Could not find awk, bailing out." >&2
 	exit 1
 fi
 
@@ -48,7 +48,7 @@ else
 	if CURL=$(which curl 2>/dev/null); then
 		get="$CURL -s --retry 1 --connect-timeout 10"
 	else
-		echo "Could not find wget or curl, bailing out." 1>&2
+		echo "Could not find wget or curl, bailing out." >&2
 		exit 1
 	fi
 fi
@@ -63,21 +63,21 @@ else
 		# Extract IP address from HTML
 		ip_address=$(echo "$ip_address" | awk -F'<|: +' '{print $(NF-2)}')
 	else
-		echo "Error: No external website is reachable, unable to obtain external IP address" 1>&2
+		echo "Error: No external website is reachable, unable to obtain external IP address" >&2
 		exit 1
 	fi
 fi
 
 # Test obtained string
-if [ -z $ip_address ];then
-	echo "Could not obtain external IP address, got an empty string" 1>&2
+if [[ -z "$ip_address" ]]; then
+	echo "Could not obtain external IP address, got an empty string" >&2
 	exit 1
 fi
 
 ip_test=$(echo "$ip_address" | $AWK -F'.' '$0 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/ && $1 <=255 && $2 <= 255 && $3 <= 255 && $4 <= 255')
 
-if [ -z $ip_test ]; then
-	echo "Error: Obtained string \"$ip_address\" is not a valid IP address" 1>&2
+if [[ -z "$ip_test" ]]; then
+	echo "Error: Obtained string \"$ip_address\" is not a valid IP address" >&2
 	exit 1
 else
 	echo "External IP address is $ip_address"

@@ -19,9 +19,9 @@ rc=0
 usage () {
 cat << END
 
-`basename $0` unlocks a given PDF file
+${0##*/} unlocks a given PDF file
 
-Usage: `basename $0` <pdf_file>
+Usage: ${0##*/} <pdf_file>
 
 The unlocked PDF file can be found in the same directory as the original file, with "_unlocked" appended to the file name.
 
@@ -31,41 +31,35 @@ END
 
 #### Error correction
 # Check if gs exists
-if which gs &> /dev/null; then
-	:
-else
+if ! which gs &> /dev/null; then
 	echo "\"gs\" is not in path (${PATH}). You might want to install the package \"ghostscript\" or check your PATH settings."
 	exit 1
 fi
 
 # Do we have a file name?
-if [ -z "$input" ]; then
+if [[ -z "$input" ]]; then
 	usage
 	exit 1
 
 fi
 
 # Does the file exist?
-if [ -r "$input" ]; then
-	:
-else
-	echo "ERROR: Could not find PDF file ${input}."
+if [[ ! -r "$input" ]]; then
+	echo "Error: Could not find PDF file ${input}."
 	exit 1
 fi
 
 # Is the file a PDF document?
-if file "$input" 2>&1 | grep "PDF document" &> /dev/null; then
-	:
-else
-	echo "ERROR: $input is not a PDF document."
+if ! file "$input" 2> /dev/null | grep -q "PDF document" &> /dev/null; then
+	echo "Error: $input is not a PDF document."
 	usage
 	exit 1
 fi
 
 # Setting target file name
-output="`dirname \"${input}\"`/`basename "$input" .pdf`_unlocked.pdf"
-if [ "$output" == "" -o "$output" == "$input" ]; then
-	echo "ERROR: Could not set output file name. Are \"basename\" and \"dirname\" installed and in path?"
+output="$(echo $input | sed 's/\.[pP][dD][fF]$/_unlocked.pdf/')"
+if [[ -z "$output" || "$output" == "$input" ]]; then
+	echo "Error: Could not set output file name."
 	exit 1
 fi
 
@@ -77,7 +71,7 @@ echo "Writing to ${output}..."
 gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sPDFPassword="" -dPDFSETTINGS=/prepress -dPassThroughJPEGImages=true -sOutputFile="$output" "$input"
 rc=$?
 
-if [ $rc -eq 0 ]; then
+if [[ $rc = 0 ]]; then
 	echo "...done."
 else
 	echo "...done with errors. Please check ${output}."

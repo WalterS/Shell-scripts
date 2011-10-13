@@ -15,26 +15,24 @@ check=0
 counter=0
 part=
 
-for disc in `mount | awk -F'/| ' '/dev\/sd[c-z]/ {print $3}' | sed 's/[0-9]$//' | sort -u`; do
+for disc in $(mount | awk -F'/| ' '/dev\/sd[c-z]/ {print $3}' | sed 's/[0-9]$//' | sort -u); do
 	used=0
 	counter=0
 
 	# Check if disc is in use
-	for part in `mount | awk '/'"$disc"'/ {print $3}'`; do
-		if [ "$part" == "" ]; then
-			:
-		else
+	for part in $(mount | awk '/'"$disc"'/ {print $3}'); do
+		if [[ -n "$part" ]]; then
 			((counter++))
 			# fuser's exit code is 1 when partition is in use
 			fuser -sm $part > /dev/null 2>&1
 			check=$?
-			used=$((used + check))
+			used=$((used+check))
 		fi
 	done
 	# Only send disc to sleep if all partitions are unused (# fuser_exitcode = # partitions)
-	if [ $used -eq $counter ]; then
+	if [[ $used -eq $counter ]]; then
 		sg_start --stop /dev/$disc
-		rc=$((rc + $?))
+		rc=$((rc+$?))
 	fi
 done
 

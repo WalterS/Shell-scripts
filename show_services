@@ -46,7 +46,7 @@ for service in $service_list; do
 			fi
 			;;
 		network)
-			if [[ -n "$( service network status | sed -n '/active/,/lo|eth/ {/eth\|lo/p}' /tmp/bla1)" ]]; then
+			if [[ -n "$(service network status | sed -n '/active/,/lo|eth/ {/eth\|lo/p}'" ]]; then
 				running_services="${running_services}${service}\n"
 				((counter++))
 			fi

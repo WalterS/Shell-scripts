@@ -26,7 +26,7 @@ plural=
 gotdelta=
 
 usage () {
-myname=$(basename $0)
+myname=${0##*/}
 cat << END
 
 "$myname" changes the timestamp of a given file
@@ -43,9 +43,9 @@ File names containing blanks or wildcards ("*", "?")  must be enclosed in single
 END
 }
 
-if [ $# -eq 0 ]; then
-	echo "Please provide at least a delta time" 1>&2
-	usage 1>&2
+if [[ $# -eq 0 ]]; then
+	echo "Please provide at least a delta time" >&2
+	usage >&2
 	exit 1
 fi
 
@@ -53,9 +53,9 @@ fi
 for arg in "$@"; do
 	# Determine delta value, abort on multiple values
 	if eval echo \'$arg\' | egrep '^[+-]?[[:digit:]]+$' &>/dev/null; then
-		if [ ! -z $gotdelta ]; then
-			echo "Multiple delta values found, please provide only one delta value" 1>&2
-			usage 1>&2
+		if [[  -n "$gotdelta" ]]; then
+			echo "Multiple delta values found, please provide only one delta value" >&2
+			usage >&2
 			exit 1
 		fi
 		delta=$arg
@@ -73,15 +73,15 @@ for arg in "$@"; do
 done
 
 # Error handling
-if [ -z $delta ]; then
-	echo "Please provide a time delta" 1>&2
-	usage 1>&2
+if [[ -z "$delta" ]]; then
+	echo "Please provide a time delta" >&2
+	usage >&2
 	exit 1
 fi
 
-if [ -z $files ]; then
-	echo "Please provide a file name" 1>&2
-	usage 1>&2
+if [[ -z "$files" ]]; then
+	echo "Please provide a file name" >&2
+	usage >&2
 	exit 1
 fi
 
@@ -92,42 +92,42 @@ files=$(echo $files | sed 's/@@++@@/\n/g')
 #### Here we go
 for f in $files; do
 	# Does the file exist?
-	if [ ! -f "$f" ]; then
-		echo "Could not find \"$f\"" 1>&2
+	if [[ ! -f "$f" ]]; then
+		echo "Could not find \"$f\"" >&2
 		((rc++))
 		continue
 	fi
 	new_date=
 	# Get original date, abort on error
 	old_date=$(ls -l --time-style="+%s" "$f" 2> /dev/null | awk -F'\\.| +' '{print $6}' 2> /dev/null)
-	if [ -z $old_date ]; then
-		echo "Could not determine original file date of \"$f\"" 1>&2
+	if [[ -z "$old_date" ]]; then
+		echo "Could not determine original file date of \"$f\"" >&2
 		exit 1
 	fi
 	# Compute new date, abort on error
-	new_date=$(($old_date + $delta))
-	if [ -z $new_date ]; then
-		echo "Could not determine new file date" 1>&2
+	new_date=$(($old_date+$delta))
+	if [[ -z "$new_date" ]]; then
+		echo "Could not determine new file date" >&2
 		exit 1
 	fi
 	new_date_p=$(date -d @$new_date "+%d.%m.%Y %H:%M:%S")
 	new_date=$(date -d @$new_date "+%Y%m%d%H%M.%S")
 
 	# Set new date, don't abort on error
-	if touch -t $new_date "$f"; then
+	if touch -t $new_date "$f" &>/dev/null; then
 		echo "Date of $f has been changed from $(date -d @$old_date '+%d.%m.%Y %H:%M:%S') to $new_date_p"
 	else
-		echo "Could not change date of $f" 1>&2
+		echo "Could not change date of $f" >&2
 		((rc++))
 	fi
 done
 
 # Check for errors
-if [ $rc -ne 0 ]; then
-	if [ $rc -gt 1 ]; then
+if [[ $rc -ne 0 ]]; then
+	if [[ $rc -gt 1 ]]; then
 		plural="s"
 	fi
-	echo "Could not change date of $rc file$plural" 1>&2
+	echo "Could not change date of $rc file$plural" >&2
 	rc=1
 fi
 

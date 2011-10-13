@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-############################################################
+################################################################################
 # ppp_stat
 #
 # Prints NIC statistics from /proc/net/dev for MRTG
@@ -11,83 +11,81 @@
 # [<uptime>|<error_message>]
 # <short_hostname>
 #
-# Using SNMP for ppp0 was unreliable because as the
-# interface is dropped and activated again the PPP entries
-# would be multiplicated
+# Using SNMP for ppp0 was unreliable because as the interface is dropped and
+# activated again the PPP entries would get multiplicated
 #
 # WS 20100224
-############################################################
+################################################################################
 ########## Changes ##########
 ####
 # Minor improvements
 # WS 20110415
 ####
 
-rc=0
-result=
+RC=0
+RESULT=
 
 # Check for parameters
-if [ "$1" == "" ]; then
-	interface="ppp[0-9]"
+if [[ $# = 0 ]]; then
+	INTERFACE="ppp[0-9]"
 else
-	interface="$1"
+	INTERFACE="$1"
 fi
 
 # Print a neat human readable uptime
 uptm () {
-expr="/usr/bin/expr"
-awk="/bin/awk"
-echo="/bin/echo"
-bc="/usr/bin/bc"
+local AWK="/bin/awk"
+local ECHO="/bin/echo"
+local BC="/usr/bin/bc"
 
 
-t=`cat /proc/uptime`
-day=days
-hour=hours
-min=minutes
+local T=$(cat /proc/uptime)
+local DAY=days
+local HOUR=hours
+local MIN=minutes
 
 # Uptime in fraction of days for MRTG
 
-t=`echo $t | cut -d '.' -f 1`
-d=`echo "$t / 86400" | $bc`
-if [ $d -eq 1 ]; then
-        day=day
+T=${T%%.*}
+local D=$((T/86400))
+if [[ $D = 1 ]]; then
+        DAY=day
 fi
 
-t=`echo "$t % 86400" | $bc`
-h=`echo "$t / 3600" | $bc`
-if [ $h -eq 1 ]; then
-        hour=hour
+T=$(echo "$T%86400" | $BC)
+local H=$(echo "$T/3600" | $BC)
+if [[ $H = 1 ]]; then
+        HOUR=hour
 fi
 
-t=`echo "$t % 3600" | $bc`
-m=`echo "$t / 60" | $bc`
-if [ $m -eq 1 ]; then
-        min=minute
+T=$(echo "$T%3600" | $BC)
+local M=$(echo "$T/60" | $BC)
+if [[ $M = 1 ]]; then
+        MIN=minute
 fi
 
-echo "$d $day, $h $hour and $m $min"
+echo "$D $DAY, $H $HOUR and $M $MIN"
 }
 
 # Get statistics
-result=`awk '/'"$interface"'/ {print $2,$10}' /proc/net/dev`
+RESULT=$($AWK '/'"$INTERFACE"'/ {print $2,$10}' /proc/net/dev)
 
 # Check for errors
-if [ ! "$result" == "" ];then
-	if echo $result | egrep -q '^[0-9]+ +[0-9]+$' 2> /dev/null; then
-		/bin/echo -e `echo $result | sed 's/ /\\\n/'`
+if [[ -n "$RESULT" ]]; then
+	if echo $RESULT | egrep -q '^[0-9]+ +[0-9]+$' 2> /dev/null; then
+		$ECHO -e $(echo $RESULT | sed 's/ /\\\n/')
 		uptm
 	else
-		/bin/echo -e "0\n0\nError: Something is wrong with the result ($result), I expected two integers"
-		rc=1
+		$ECHO -e "0\n0\nError: Something is wrong with the result ($RESULT), I expected two integers"
+		RC=1
 	fi
 		
 else
-	/bin/echo -e "0\n0"
+	$ECHO -e "0\n0"
 	uptm
 fi
-hostname | cut -d '.' -f 1
+hostname -s | cut -d '.' -f 1
 
-exit $rc
+exit $RC
 
 # EOF

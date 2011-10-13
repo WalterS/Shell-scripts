@@ -14,7 +14,7 @@ device=
 query=
 
 usage() {
-local basename=$(basename $0)
+local basename=${0##*/}
 cat << END
 
 "$basename" prints udev informations about a given device
@@ -27,8 +27,8 @@ END
 }
 
 # We will process only one parameter
-if [ $# -ne 1 ]; then
-	usage 1>&2
+if [[ $# != 1 ]]; then
+	usage >&2
 	exit 1
 else
 	device=$1
@@ -40,8 +40,8 @@ if echo $device | grep -qv '^/dev/'; then
 fi
 
 # Does the device exist?
-if [ ! -e $device ]; then
-	echo "Error: Could not find $device" 1>&2
+if [[ ! -e $device ]]; then
+	echo "Error: Could not find $device" >&2
 	exit 2
 fi
 
@@ -56,14 +56,14 @@ else
 		$query info --attribute-walk --name=$device 
 		rc=$?
 	else
-		echo "Error: Couldn't find udevadm or udevinfo in path" 1>&2
+		echo "Error: Couldn't find udevadm or udevinfo in path" >&2
 		exit 2
 	fi
 fi
 
 rc=$((rc+$?))
 
-if [ $rc -ne 0 ]; then
+if [[ $rc != 1 ]]; then
 	rc=1
 fi
 

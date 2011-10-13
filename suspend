@@ -18,7 +18,7 @@
 
 process=BackupPC_dump
 wait_time=5m
-log=/tmp/$(basename $0).log
+log=/tmp/${0##*/}.log
 
 start_time=$(date '+%s')
 counter=0
@@ -29,28 +29,26 @@ prc=
 
 
 # Check if log file is accessible
-if touch $log > /dev/null 2>&1; then
-	:
-else
-	echo "Could not access log file $log" 1>&2
+if ! touch $log > /dev/null 2>&1; then
+	echo "Could not access log file $log" >&2
 	exit 1
 fi
 
 # Check periodically if process is running
-while [ $is_running -eq 1 ]; do
+while [[ $is_running = 1 ]]; do
 	prc=$(/usr/local/bin/psgrep $process | awk '!/BackupPC -d/ && ! /BackupPC_trashClean/')
-	if [ "$prc" == "" ]; then
+	if [[ -z "$prc" ]]; then
 		is_running=0
 	else
 		((counter++))
-		/bin/sleep $wait_time
+		sleep $wait_time
 	fi
 done
 
 # Compute run time
 end_time=$(date '+%s')
 
-if [ $counter -gt 0 ]; then
+if [[ $counter -gt 0 ]]; then
 	exec_time=$(($(($end_time-$start_time))/60))
 fi
 

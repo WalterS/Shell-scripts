@@ -46,11 +46,9 @@ trap 'echo "Program aborted"; exit 3' 1 2 3 15
 rc=0
 
 # Some basic tests
-if [ -d $dir ] &> /dev/null; then
-	:
-else
+if [[ ! -d $dir ]] &> /dev/null; then
 	mkdir -p $dir
-	if [ $? -ne 0 ]; then
+	if [[ ! -d $dir ]]; then
 		echo Directory $dir is not available
 		((rc++))
 		exit $rc
@@ -59,9 +57,7 @@ fi
 
 log=${dir}/${name}.log
 
-if touch $log &> /dev/null; then
-	:
-else
+if ! touch $log &> /dev/null; then
 	echo Log file $log is not accessible
 	((rc++))
 	exit $rc
@@ -71,7 +67,7 @@ fi
 #### Here we go
 
 # Header for log file
-header () {
+header() {
 cat << END
 ____________________________________________________________
 `date '+%Y%m%d %H:%M:%S'`
@@ -82,7 +78,7 @@ END
 getimage () {
 
 if wget -o $log -O ${dir}/${name}1.jpg $location; then
-	if [ $debug -eq 1 ]; then
+	if [[ "$debug" = 1 ]]; then
 		cat << END >> $log
 `header`
 
@@ -101,16 +97,16 @@ END
 	exit 1
 fi
 
-if [ $? -eq 0 -a -s ${dir}/${name}1.jpg ]; then
+if [[ $? = 0 && -s ${dir}/${name}1.jpg ]]; then
 	mv -f ${dir}/${name}1.jpg ${dir}/${name}.jpg 
 fi
 
 }
 
 # Get URL
-location=`wget -qO - $site | awk -F\" '(/'"$search_str1"'/ && /'"$search_str2"'/) && s=='"$occurrence"' {print $2; s++1}'`
+location=$(wget -qO - $site | awk -F\" '(/'"$search_str1"'/ && /'"$search_str2"'/) && s=='"$occurrence"' {print $2; s++1}')
 
-if [ "$location" == "" ]; then
+if [[ -z "$location" ]]; then
 	cat << END >> $log
 `header`
 
@@ -121,9 +117,9 @@ END
 fi
 
 # Test whether picture has changed
-timestamp=`echo $location | awk -F'=|;|' '{print $(NF-3)}'`
+timestamp=$(echo $location | awk -F'=|;|' '{print $(NF-3)}')
 
-if [ "$timestamp" == "" ]; then
+if [[ -z "$timestamp" ]]; then
 	cat << END >> $log
 `header`
 
@@ -138,7 +134,7 @@ if grep $timestamp $log &> /dev/null; then
 	if grep -E 'ERROR|failed' $log &> /dev/null; then
 		getimage
 	else
-		if [ $debug -eq 1 ]; then
+		if [[ "$debug" = 1 ]]; then
 		cat << END >> $log
 `header`
 

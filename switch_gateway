@@ -53,9 +53,7 @@ fi
 echo "Adding gw ${prefix}${gw_new}"
 if route add default gw ${prefix}${gw_new} > /dev/null 2>&1; then
 	echo "Deleting gw ${prefix}${gw_current}"
-	if route delete default gw ${prefix}${gw_current} > /dev/null 2>&1; then
-		:
-	else
+	if ! route delete default gw ${prefix}${gw_current} > /dev/null 2>&1; then
 		echo "Could not delete old default gateway ${prefix}${gw_current}" 1>&2
 		rc=1
 else

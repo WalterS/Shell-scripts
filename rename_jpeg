@@ -14,13 +14,13 @@ exiftool=
 
 
 # Do we have exiftool in path?
-if [ -z $exiftool ]; then
+if [[ -z "$exiftool" ]]; then
 	if ! exiftool=$(which exiftool 2>/dev/null); then
 		echo "Could not find exiftool" >&2
 		exit 1
 	fi
 else
-	if [ ! -x $exiftool ]; then
+	if [[ ! -x $exiftool ]]; then
 		echo "Could not execute $exiftool" >&2
 		exit 1
 	fi
@@ -41,7 +41,7 @@ if ls *JPG &>/dev/null; then
 	done
 fi
 
-if [ $rc -gt 0 ]; then
+if [[ $rc -gt 0 ]]; then
 	echo "Error while renaming files to lower case." >&2
 	exit 1
 fi
@@ -59,7 +59,7 @@ for jpg in *.jpg; do
 		continue
 	fi
 	# Better redundant than sorry
-	if [ -z $new_filename ]; then
+	if [[ -z "$new_filename" ]]; then
 		echo "Could read creation date from $jpg" >&2
 		((rc++))
 		continue
@@ -73,7 +73,7 @@ for jpg in *.jpg; do
 	fi
 done
 
-if [ $rc -gt 0 ]; then
+if [[ $rc -gt 0 ]]; then
 	echo "Error while renaming files." >&2
 	exit 1
 fi

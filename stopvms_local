@@ -17,15 +17,15 @@ vm=
 name=
 uid=
 
-if ! [ -x "`which $vboxmanage 2>/dev/null`" ]; then
-	echo "Could not find command VBoxManage" 1>&2
+if ! [[ -x "$(which $vboxmanage 2>/dev/null)" ]]; then
+	echo "Could not find command VBoxManage" >&2
 	exit 1
 fi
 
 # Get list of running VMs
 vms=$($vboxmanage list runningvms | awk -F'{|}' '{print $1,$(NF-1)}' 2>/dev/null)
 
-if [ "$vms" == "" ]; then
+if [[ -z "$vms" ]]; then
 	echo "Nothing to do"
 	exit 0
 fi
@@ -36,11 +36,11 @@ for vm in $vms; do
 	echo "Shutting down $name"
 	# Running escalated shutdown tries, from saving state to poweroff
 	if ! $vboxmanage controlvm $uid savestate 2> /dev/null; then
-		echo "Could not save state of VM $name, trying ACPI shutdown" 1>&2
+		echo "Could not save state of VM $name, trying ACPI shutdown" >&2
 		if ! $vboxmanage controlvm $uid acpipowerbutton 2> /dev/null; then
-			echo "ACPI shutdown for VM $name failed, trying poweroff" 1>&2
+			echo "ACPI shutdown for VM $name failed, trying poweroff" >&2
 			if ! $vboxmanage controlvm $uid poweroff 2> /dev/null; then
-				echo "Could not shut down VM $name, UID $uid" 1>&2
+				echo "Could not shut down VM $name, UID $uid" >&2
 				((rc++))
 			else
 				echo "Poweroff of VM $name successful"

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ############################################################
 # makeheader
@@ -35,17 +35,17 @@ filetype=
 
 usage () {
 
-cat << END 1>&2
+cat << END >&2
 
-Usage:   `basename $0` <name_of_file> [bash|sh|[perl|pl]]
-Example: `basename $0` ~/bin/blafasel.sh bash
+Usage:   ${0##*/} <name_of_file> [bash|sh|[perl|pl]]
+Example: ${0##*/} ~/bin/blafasel.sh bash
 
 If only a file name is given, the file type will be sh
 
 END
 }
 
-if [ $# -lt 1 -o $# -gt 2 ]; then
+if [[ $# -lt 1 || $# -gt 2 ]]; then
 	usage
 	exit 1
 fi
@@ -63,36 +63,32 @@ case $filetype in
 	"")
 		;;
 	*)
-		echo "Unknown file type ($filetype)" 1>&2
+		echo "Unknown file type ($filetype)" >&2
 		usage
 		exit 1
 esac
 
-filename_short=`basename $filename`
+filename_short=${filename##*/}
 
 # Some basic tests
-if [ "$filename_short" == "" ]; then
-	echo "Could not determine file name from $filename" 1>&2
+if [[ -z "$filename_short" ]]; then
+	echo "Could not determine file name from $filename" >&2
 	exit 1
 fi
 
-if [ -f $filename ]; then
-	echo "File \"$filename\" exists, chose another name" 1>&2
+if [[ -f $filename ]]; then
+	echo "File \"$filename\" exists, chose another name" >&2
 	exit 1
 fi
 
 # Here we go
-if `touch $filename` > /dev/null; then
-	:
-else
-	echo "Could not create $filename" 1>&2
+if ! touch $filename &> /dev/null; then
+	echo "Could not create $filename" >&2
 	exit 1
 fi
 
-if `chmod +x $filename`; then
-	:
-else
-	echo "Could not change file mode to executable" 1>&2
+if ! chmod +x $filename &> /dev/null; then
+	echo "Could not change file mode to executable" >&2
 	exit 1
 fi
 

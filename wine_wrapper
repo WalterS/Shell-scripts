@@ -37,7 +37,7 @@ prog=
 id=
 
 # Let's see how we were called
-case $(basename $0) in
+case ${0##*/} in
 	irfanview)
 		prog="multimedia/irfanview/i_view32.exe" ;;
 	mp3tag)
@@ -69,15 +69,15 @@ case $(basename $0) in
 	wine_wrapper)
 		cd $prog_dir
 		for tag in irfanview mp3tag foobar2000 getright atube_catcher avi_tags mp3directcut mp3merge emule totalcmd renamer adc vnc_listener pdfx; do
-			if [ ! -e "$tag" ]; then
-				ln -s $(basename $0) $tag
+			if [[ ! -e "$tag" ]]; then
+				ln -s ${0##*/} $tag
 				rc=$((rc+$?))
 			fi
 		done
 		exit $rc ;;
 		
 	*)
-		echo "Couldn't recognise my own name (\"$(basename $0)\"), bailing out" 1>&2
+		echo "Couldn't recognise my own name (\"${0##*/}\"), bailing out" >&2
 		exit 2 ;;
 esac
 
@@ -87,7 +87,7 @@ wine ${base}${prog} &> /dev/null &
 id=$!
 sleep 1
 if ! kill -0 $id &> /dev/null; then
-	echo "Could not run ${base}${prog}" 1>&2
+	echo "Could not run ${base}${prog}" >&2
 	rc=99
 fi
 
