@@ -32,42 +32,42 @@ END
 #### Error correction
 # Check if gs exists
 if ! which gs &> /dev/null; then
-	echo "\"gs\" is not in path (${PATH}). You might want to install the package \"ghostscript\" or check your PATH settings."
+	echo "\"gs\" is not in path (${PATH}). You might want to install the package \"ghostscript\" or check your PATH settings." >&2
 	exit 1
 fi
 
 # Do we have a file name?
 if [[ -z "$input" ]]; then
-	usage
+	usage >&2
 	exit 1
 
 fi
 
 # Does the file exist?
 if [[ ! -r "$input" ]]; then
-	echo "Error: Could not find PDF file ${input}."
+	echo "Error: Could not find PDF file ${input}." >&2
 	exit 1
 fi
 
 # Is the file a PDF document?
 if ! file "$input" 2> /dev/null | grep -q "PDF document" &> /dev/null; then
-	echo "Error: $input is not a PDF document."
-	usage
+	echo "Error: $input is not a PDF document." >&2
+	usage >&2
 	exit 1
 fi
 
 # Setting target file name
 output="$(echo $input | sed 's/\.[pP][dD][fF]$/_unlocked.pdf/')"
 if [[ -z "$output" || "$output" == "$input" ]]; then
-	echo "Error: Could not set output file name."
+	echo "Error: Could not set output file name." >&2
 	exit 1
 fi
 
 # We'll remove the output file if the progam is aborted
-trap 'rm -rf "${output}" &> /dev/null; echo "Programm aborted"; exit 99' 1 2 3 15
+trap 'rm -rf "${output}" &> /dev/null; echo "Programm aborted" >&2; exit 99' 1 2 3 15
 
 #### Here we go
-echo "Writing to ${output}..."
+echo -n "Writing to ${output}... "
 gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sPDFPassword="" -dPDFSETTINGS=/prepress -dPassThroughJPEGImages=true -sOutputFile="$output" "$input"
 rc=$?
 
