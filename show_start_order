@@ -31,7 +31,7 @@ started_daemons=
 # Set exit code to 2 on abort
 trap 'exit 2' 1 2 3 15
 
-if ! cd /etc/rc.d/init.di &> /dev/null; then
+if ! cd /etc/rc.d/init.d &> /dev/null; then
 	echo "Could not change into /etc/rc.d/init.d, bailing out." >&2
 	exit 1
 fi
