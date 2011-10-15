@@ -12,9 +12,11 @@
 # Pruned unnecessary "wc", improved error handling
 # WS 20110414
 ####
-####
 # sh -> bash, cleared awk expression
 # WS 20111013
+####
+# Fixed: No abort on no file found
+# WS 20111015
 ####
 
 
@@ -40,6 +42,7 @@ fi
 if [[ ! -f "$FILE" ]]; then
 	echo "Could not find \"${FILE}\"" >&2
 	usage >&2
+	exit 1
 fi
 
 ## Here we go
