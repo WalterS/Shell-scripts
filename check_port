@@ -14,7 +14,9 @@
 # Removed root test, improved error handling
 # WS 20110824
 ####
-
+# Redundant echo statements pruned
+# WC 20111016
+####
 
 my_name=${0##*/}
 port=
@@ -70,10 +72,9 @@ fi
 
 
 # Remove trailing blanks
-port=$(echo $port | sed 's/ +$//')
-
+port=$(sed 's/ +$//'<<<"$port")
 # Only numbers, blanks and hyphen allowed
-if ! echo $port | egrep -q '^([1-9]+( |-)?)*[0-9]+$'; then
+if ! egrep -q '^([1-9]+( |-)?)*[0-9]+$' <<<"$port"; then
 	echo "Error: Only numbers, blanks and hyphen allowed in port value" >&2
 	usage >&2
 	exit 1
@@ -82,13 +83,13 @@ fi
 # Check for port list
 # Ports are expected either as single value, separated by blank or two values separated by hyphen
 # Only one hyphen allowed
-if echo $port | egrep -q '\-.*-.*'; then
+if egrep -q '\-.*-.*' <<<"$port"; then
 	echo "Error: More than one hyphen in port list" >&2
 	usage >&2
 	exit 1
 else
 	# No mixing of hyphen and blanks
-	if echo $port | egrep -q '\-.*( ).*|( ).*-.*'; then
+	if egrep -q '\-.*( ).*|( ).*-.*' <<<"$port"; then
 		echo "Error: Hyphen and blank in port list" >&2
 		usage >&2
 		exit 1
@@ -96,7 +97,7 @@ else
 fi
 
 # Second value in port range has to be greater than first value
-if echo $port | egrep -q '\-'; then
+if egrep -q '\-' <<<"$port"; then
 	if ! echo $port | awk -F'-' '{if ($1>=$2) exit 1}' &> /dev/null; then
 		echo "Error: First value in port range is greater or equal than second value" >&2
 		usage >&2

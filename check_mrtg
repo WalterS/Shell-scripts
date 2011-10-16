@@ -63,7 +63,7 @@ i=0
 for item in ${items[*]}; do
 	# Find OID and change from index to value
 	oids[${i}]=$(awk -F'\\\\.| =' '/'"$item"'/ {$(NF-2)=$(NF-2)+1; { for (i = 2; i < NF; ++i) printf "."$i }}' $temp)
-	oid_temp=$(echo ${oids[${i}]} | sed 's/\./\\./g')
+	oid_temp=$(sed 's/\./\\./g' <<<$oids[${i}])
 
 	# Search for OID in mrtg.cfg
 	if [[ -z "$(awk '/'"${mrtg_key[${i}]}"'/ && /'"${oid_temp}"'/ && /@/ && ! /^#/' $mrtg_cfg)" ]]; then

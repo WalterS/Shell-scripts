@@ -35,7 +35,7 @@ else
 fi
 
 # If the device doesn't start with "/dev/" prefix it with "/dev/"
-if echo $device | grep -qv '^/dev/'; then
+if grep -qv '^/dev/' <<<$device; then
 	device=${device/#/\/dev\/}
 fi
 

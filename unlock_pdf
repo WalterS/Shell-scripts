@@ -57,7 +57,7 @@ if ! file "$input" 2> /dev/null | grep -q "PDF document" &> /dev/null; then
 fi
 
 # Setting target file name
-output="$(echo $input | sed 's/\.[pP][dD][fF]$/_unlocked.pdf/')"
+output="$(sed 's/\.[pP][dD][fF]$/_unlocked.pdf/' <<<$input)"
 if [[ -z "$output" || "$output" == "$input" ]]; then
 	echo "Error: Could not set output file name." >&2
 	exit 1
@@ -68,7 +68,7 @@ trap 'rm -rf "${output}" &> /dev/null; echo "Programm aborted" >&2; exit 99' 1 2
 
 #### Here we go
 echo -n "Writing to ${output}... "
-gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sPDFPassword="" -dPDFSETTINGS=/prepress -dPassThroughJPEGImages=true -sOutputFile="$output" "$input"
+gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sPDFPassword="" -dPDFSETTINGS=/prepress -dPassThroughJPEGImages=true -sOutputFile="$output" "$input" 2>/dev/null
 rc=$?
 
 if [[ $rc = 0 ]]; then

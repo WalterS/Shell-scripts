@@ -49,14 +49,14 @@ case ${0##*/} in
 esac
 
 # Get start/stop priority of all files in /etc/init.d
-all_daemons=$(awk -F':| +|\t+' '/chkconfig:/ { print $(NF-'"$column"'), FILENAME }' *)
+all_daemons=$(awk -F':| +|\t+' '/chkconfig:/ {print $(NF-'"$column"'), FILENAME}' *)
 
 # Get all daemons configured for starting/stopping in runlevel 3
 started_daemons=$(chkconfig --list | awk '/3:on/ {print $1}')
 
 for d in $started_daemons ; do
 	d1=$d
-	d=$(echo "$all_daemons" | grep $d'$')
+	d=$(grep $d'$' <<<"$all_daemons")
 
 	if [[ "$d" == "\n" || -z "$d" ]]; then
 		echo "Testing \"$d1\" failed" >&2

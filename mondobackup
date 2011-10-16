@@ -25,18 +25,20 @@ iso_size="4600m"
 
 temp="/mnt/mondo.$$"
 
+error_dir_(){
+echo "Could not $1 $2 directory, bailing out" >&2
+exit 1
+}
 # Function for cleaning up
 cleanup () {
 if mount | grep -q $temp; then
 	if ! umount $temp &> /dev/null; then
-		echo "Could not unmount temporary directory" >&2
-		exit 2
+		error_dir_ unmount temporary
 	fi
 fi
 if [[ -d "$temp" ]]; then
 	if ! 'rm' -rf $temp &> /dev/null; then
-		echo "Could not remove temporary directory" >&2
-		exit 2
+		error_dir_ remove temporary
 	fi
 fi
 }
@@ -54,25 +56,21 @@ fi
 
 # Does backup directory exist and is readable?
 if [[ -d "$backup_dir" ]]; then
-	if [ !  -w "$backup_dir" ]; then
-		echo "Backup directory is not writeable, bailing out" >&2
-		exit 1
+	if [[ !  -w "$backup_dir" ]]; then
+		error_dir_ "write into" backup
 	fi
 else
-	echo "Could not find backup directory, bailing out" >&2
-	exit 1
+		error_dir_ find backup
 fi
 
 # Create temporary directory
 if ! mkdir $temp &> /dev/null; then
-	echo "Could not create temporary directory, bailing out" >&2
-	exit 1
+	error_dir_ create temporary
 fi
 
 # Mount tmpfs to temporary directory
 if ! mount -t tmpfs -o size=${ram_size},nr_inodes=4k,mode=700 tmpfs $temp &> /dev/null; then
-	echo "Could not mount temporary directory, bailing out" >&2
-	exit 1
+	error_dir_ mount temporary
 fi
 
 #### Here we go

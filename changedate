@@ -87,7 +87,7 @@ fi
 
 
 # Remove delimiter
-files=$(echo $files | sed 's/@@++@@/\n/g')
+files=$(sed 's/@@++@@/\n/g' <<<"$files")
 
 #### Here we go
 for f in $files; do

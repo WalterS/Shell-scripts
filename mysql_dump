@@ -67,7 +67,7 @@ done
 # Error report
 if [[ $RC != 0 ]]; then
 	if [[ $RC = 1 ]]; then
-		DB_ERR="$(echo $DB_ERR | sed 's/\\n//g')"
+		DB_ERR=$(sed 's/\\n//g' <<<"$DB_ERR")
 		cat << END >&2
 An error occured while dumping the databases.
 Database \"$DB_ERR\" could not be dumped.
