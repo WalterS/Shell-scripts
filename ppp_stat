@@ -21,9 +21,13 @@
 # Minor improvements
 # WS 20110415
 ####
+# Moved external operations to internal operations
+# WS 2011116
+####
 
 RC=0
 RESULT=
+AWK="/bin/awk"
 
 # Check for parameters
 if [[ $# = 0 ]]; then
@@ -34,32 +38,30 @@ fi
 
 # Print a neat human readable uptime
 uptm () {
-local AWK="/bin/awk"
-local ECHO="/bin/echo"
-local BC="/usr/bin/bc"
-
 
 local T=$(cat /proc/uptime)
 local DAY=days
 local HOUR=hours
 local MIN=minutes
+local H=
+local D=
+local M=
 
 # Uptime in fraction of days for MRTG
-
 T=${T%%.*}
-local D=$((T/86400))
+D=$((T/86400))
 if [[ $D = 1 ]]; then
         DAY=day
 fi
 
-T=$(echo "$T%86400" | $BC)
-local H=$(echo "$T/3600" | $BC)
+T=$((T%86400))
+H=$(($T/3600))
 if [[ $H = 1 ]]; then
         HOUR=hour
 fi
 
-T=$(echo "$T%3600" | $BC)
-local M=$(echo "$T/60" | $BC)
+T=$((T%3600))
+M=$(($T/60))
 if [[ $M = 1 ]]; then
         MIN=minute
 fi
@@ -72,19 +74,19 @@ RESULT=$($AWK '/'"$INTERFACE"'/ {print $2,$10}' /proc/net/dev)
 
 # Check for errors
 if [[ -n "$RESULT" ]]; then
-	if echo $RESULT | egrep -q '^[0-9]+ +[0-9]+$' 2> /dev/null; then
-		$ECHO -e $(echo $RESULT | sed 's/ /\\\n/')
+	if [[ ${RESULT} =~ ^[0-9]+\ +[0-9]+$ ]]; then
+		echo -e ${RESULT// /\\n}
 		uptm
 	else
-		$ECHO -e "0\n0\nError: Something is wrong with the result ($RESULT), I expected two integers"
+		echo -e "0\n0\nError: Something is wrong with the result ($RESULT), I expected two integers"
 		RC=1
 	fi
 		
 else
-	$ECHO -e "0\n0"
+	echo -e "0\n0"
 	uptm
 fi
-hostname -s | cut -d '.' -f 1
+hostname -s
 
 exit $RC
 
