@@ -107,7 +107,7 @@ if [[ $port =~ - ]]; then
 		exit 1
 	else
 		# Build list argument
-		port_list=$(awk -F'-' '{print "{"$1".."$2"}"}' <<<$port)
+		port_list=$(awk -F'-' '{print "{"$1".."$2"}"}' <<<"$port")
 	fi
 else
 	port_list="$port"
