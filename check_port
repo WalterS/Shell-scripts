@@ -15,7 +15,10 @@
 # WS 20110824
 ####
 # Redundant echo statements pruned
-# WC 20111016
+# WS 20111016
+####
+# Replaced grep by [[
+# WS 20111020
 ####
 
 my_name=${0##*/}
@@ -44,13 +47,13 @@ while getopts  "h:p:s:" flag; do
 			host="$OPTARG" ;;
 		p)
 			port="$OPTARG" ;;
-		s)	proto=$(echo "$OPTARG" | tr [[:upper:]] [[:lower:]])
-			if [ "$proto" != "tcp" -a "$proto" != "udp" ]; then
+		s)	proto=$(tr [[:upper:]] [[:lower:]] <<<"$OPTARG")
+			if [[ "$proto" != "tcp" && "$proto" != "udp" ]]; then
 				echo "Error: Invalid protocol, either specify \"tcp\" or \"udp\"" >&2
 				usage >&2
 				exit 1
 			else
-				proto_display=$(echo $proto | tr [[:lower:]] [[:upper:]])
+				proto_display=$(tr [[:lower:]] [[:upper:]] <<<"$proto")
 			fi ;;
 		\?)
 			shift $((OPTIND-2))
@@ -74,7 +77,7 @@ fi
 # Remove trailing blanks
 port=$(sed 's/ +$//'<<<"$port")
 # Only numbers, blanks and hyphen allowed
-if ! egrep -q '^([1-9]+( |-)?)*[0-9]+$' <<<"$port"; then
+if [[ ! $port =~ ^([1-9]+( |-)?)*[0-9]+$ ]]; then
 	echo "Error: Only numbers, blanks and hyphen allowed in port value" >&2
 	usage >&2
 	exit 1
@@ -83,13 +86,13 @@ fi
 # Check for port list
 # Ports are expected either as single value, separated by blank or two values separated by hyphen
 # Only one hyphen allowed
-if egrep -q '\-.*-.*' <<<"$port"; then
+if [[ $port =~ -.*-.* ]]; then
 	echo "Error: More than one hyphen in port list" >&2
 	usage >&2
 	exit 1
 else
 	# No mixing of hyphen and blanks
-	if egrep -q '\-.*( ).*|( ).*-.*' <<<"$port"; then
+	if [[ $port =~ -.*( ).*|( ).*-.* ]]; then
 		echo "Error: Hyphen and blank in port list" >&2
 		usage >&2
 		exit 1
@@ -97,14 +100,14 @@ else
 fi
 
 # Second value in port range has to be greater than first value
-if egrep -q '\-' <<<"$port"; then
-	if ! echo $port | awk -F'-' '{if ($1>=$2) exit 1}' &> /dev/null; then
+if [[ $port =~ - ]]; then
+	if ! awk -F'-' '{if ($1>=$2) exit 1}' &> /dev/null <<<"$port"; then
 		echo "Error: First value in port range is greater or equal than second value" >&2
 		usage >&2
 		exit 1
 	else
 		# Build list argument
-		port_list=$(echo $port | awk -F'-' '{print "{"$1".."$2"}"}')
+		port_list=$(awk -F'-' '{print "{"$1".."$2"}"}' <<<$port)
 	fi
 else
 	port_list="$port"
@@ -124,4 +127,4 @@ done
 
 exit 0
 
-# EOF
+# EO
