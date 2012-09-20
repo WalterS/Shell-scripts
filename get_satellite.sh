@@ -29,7 +29,7 @@ site=http://www.yr.no/satellitt/1.5941755
 
 # Search strings for scraping
 # Make sure to escape all <>.?/ etc.
-search_str1='src="http:.*\/weatherapi\/geosatellite\/1\.3\/\?area=europe'
+search_str1='\<img src="http:\/\/api.yr.no\/weatherapi\/geosatellite\/1\.3\/\?area=europe'
 search_str2='width=650'
 
 # Which record (first=0)?
@@ -46,9 +46,10 @@ trap 'echo "Program aborted"; exit 3' 1 2 3 15
 rc=0
 
 # Some basic tests
-if ! [[ -d $dir ]] &> /dev/null; then
-	if ! mkdir -p $dir; then
-		echo "Error: Directory $dir is not available" >&2
+if [[ ! -d $dir ]] &> /dev/null; then
+	mkdir -p $dir
+	if [[ ! -d $dir ]]; then
+		echo Directory $dir is not available
 		((rc++))
 		exit $rc
 	fi
@@ -57,7 +58,7 @@ fi
 log=${dir}/${name}.log
 
 if ! touch $log &> /dev/null; then
-	echo "Error: Log file $log is not accessible" >&2
+	echo Log file $log is not accessible
 	((rc++))
 	exit $rc
 fi
@@ -66,7 +67,7 @@ fi
 #### Here we go
 
 # Header for log file
-header () {
+header() {
 cat << END
 ____________________________________________________________
 `date '+%Y%m%d %H:%M:%S'`
@@ -77,19 +78,19 @@ END
 getimage () {
 
 if wget -o $log -O ${dir}/${name}1.jpg $location; then
-	if [[ $debug = 1 ]]; then
+	if [[ "$debug" = 1 ]]; then
 		cat << END >> $log
-$(header)
+`header`
 
-Debug: Downloaded image from $location
+DEBUG: Downloaded image from $location
 
 END
 	fi
 else
 	cat << END >> $log
-$(header)
+`header`
 
-Error: Could not download satellite image
+ERROR: Could not download satellite image
 URL: $location
 END
 	((rc++))
@@ -97,7 +98,7 @@ END
 fi
 
 if [[ $? = 0 && -s ${dir}/${name}1.jpg ]]; then
-	mv -f ${dir}/${name}1.jpg ${dir}/${name}.jpg &>/dev/null
+	mv -f ${dir}/${name}1.jpg ${dir}/${name}.jpg 
 fi
 
 }
@@ -107,9 +108,9 @@ location=$(wget -qO - $site | awk -F\" '(/'"$search_str1"'/ && /'"$search_str2"'
 
 if [[ -z "$location" ]]; then
 	cat << END >> $log
-$(header)
+`header`
 
-Error: Could not get URL for satellite image
+ERROR: Could not get URL for satellite image
 END
 	((rc++))
 	exit 1
@@ -118,24 +119,24 @@ fi
 # Test whether picture has changed
 timestamp=$(echo $location | awk -F'=|;|' '{print $(NF-3)}')
 
-if [ "$timestamp" == "" ]; then
+if [[ -z "$timestamp" ]]; then
 	cat << END >> $log
-$(header)
+`header`
 
-Error: Could not extract timestamp from URL for comparison
+ERROR: Could not extract timestamp from URL for comparison
 END
 	((rc++))
 	exit 1
 fi
 
 # Download only if picture has changed and when there is no error in log file
-if grep -q $timestamp $log &> /dev/null; then
-	if egrep -qE 'Error|failed' $log &> /dev/null; then
+if grep $timestamp $log &> /dev/null; then
+	if grep -E 'ERROR|failed' $log &> /dev/null; then
 		getimage
 	else
-		if [[ $debug = 1 ]]; then
+		if [[ "$debug" = 1 ]]; then
 		cat << END >> $log
-$(header)
+`header`
 
 DEBUG: Link to image has not changed ($timestamp)
 END
