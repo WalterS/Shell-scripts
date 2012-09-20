@@ -74,7 +74,7 @@ if ! mount -t tmpfs -o size=${ram_size},nr_inodes=4k,mode=700 tmpfs $temp &> /de
 fi
 
 #### Here we go
-if mondoarchive -i -O -E "$excluded_dirs" -N -d $backup_dir -s $iso_size -7 -G -T $temp -S $temp -p $(hostname -s)_$(date '+%Y%m%d'); then
+if mondoarchive -k /boot/vmlinuz-$(uname -r) -i -O -E "$excluded_dirs" -N -d $backup_dir -s $iso_size -7 -G -T $temp -S $temp -p $(hostname -s)_$(date '+%Y%m%d'); then
 	'mv' /var/cache/mindi/mondorescue.iso $backup_dir
 else
 	echo "mondoarchive exited with error" >&2
