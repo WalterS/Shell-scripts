@@ -26,12 +26,13 @@ port=
 host=
 proto=
 proto_display=
+RC=
 
 usage () {
 cat <<END
 
 $my_name checks for open TCP/UDP ports
-Usage:     $my_name -h <hostname> -p <prot_number> -s [tcp|udp]
+Usage:     $my_name -h <hostname> -p <port_number> -s [tcp|udp]
 Example:   $my_name -h localhost -p "22 25" -s tcp 
            Check if ports 22 (SSH) and 25 (SMTP) are open on localhost
 
@@ -51,7 +52,7 @@ while getopts  "h:p:s:" flag; do
 			if [[ "$proto" != "tcp" && "$proto" != "udp" ]]; then
 				echo "Error: Invalid protocol, either specify \"tcp\" or \"udp\"" >&2
 				usage >&2
-				exit 1
+				exit 2
 			else
 				proto_display=$(tr [[:lower:]] [[:upper:]] <<<"$proto")
 			fi ;;
@@ -59,18 +60,18 @@ while getopts  "h:p:s:" flag; do
 			shift $((OPTIND-2))
 			echo "Error: Invalid option: \"$1\"" >&2
 			usage >&2
-			exit 1 ;;
+			exit 2 ;;
 		*)
 			echo "Error: Wrong parameter" >&2
 			usage >&2
-			exit 1 ;;
+			exit 2 ;;
 	esac
 done
 
 if [[ -z "$host" || -z "$port" || -z "$proto" ]]; then
 	echo "Error: Need more input" >&2
 	usage >&2
-	exit 1
+	exit 2
 fi
 
 
@@ -80,7 +81,7 @@ port=$(sed 's/ +$//'<<<"$port")
 if [[ ! $port =~ ^([1-9]+( |-)?)*[0-9]+$ ]]; then
 	echo "Error: Only numbers, blanks and hyphen allowed in port value" >&2
 	usage >&2
-	exit 1
+	exit 2
 fi
 
 # Check for port list
@@ -89,22 +90,22 @@ fi
 if [[ $port =~ -.*-.* ]]; then
 	echo "Error: More than one hyphen in port list" >&2
 	usage >&2
-	exit 1
+	exit 2
 else
 	# No mixing of hyphen and blanks
 	if [[ $port =~ -.*( ).*|( ).*-.* ]]; then
 		echo "Error: Hyphen and blank in port list" >&2
 		usage >&2
-		exit 1
+		exit 2
 	fi
 fi
 
 # Second value in port range has to be greater than first value
 if [[ $port =~ - ]]; then
-	if ! awk -F'-' '{if ($1>=$2) exit 1}' &> /dev/null <<<"$port"; then
+	if ! awk -F'-' '{if ($1>=$2) exit 2}' &> /dev/null <<<"$port"; then
 		echo "Error: First value in port range is greater or equal than second value" >&2
 		usage >&2
-		exit 1
+		exit 2
 	else
 		# Build list argument
 		port_list=$(awk -F'-' '{print "{"$1".."$2"}"}' <<<"$port")
@@ -121,10 +122,11 @@ for p in $(eval echo $port_list); do
 		echo "$proto_display port $p on $host is open"
 	else
 		echo "$proto_display port $p on $host is closed"
+		RC=1
 	fi
 
 done
 
-exit 0
+exit $RC
 
 # EOF
