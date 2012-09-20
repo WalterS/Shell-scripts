@@ -1,30 +1,26 @@
 #!/bin/bash
 
-################################################################################
+############################################################
 # deviceinfo
 #
 # Print udev informations about a given device
-# Tested on Fedora 14, Ubuntu 10.10, Red Hat EL/CentOS 5.5, SLES 11
+# Tested on Fedora 14, Ubuntu 10.10, Red Hat EL/CentOS 5.5
 #
 # WS 20110420
-################################################################################
-########## Changes ##########
-####
-# Changed order of udevadm/udevinfo detection for SLES
-# WS 20111110
+############################################################
 
-RC=0
-DEVICE=
-QUERY=
+rc=0
+device=
+query=
 
 usage() {
-local BASENAME=${0##*/}
+local basename=${0##*/}
 cat << END
 
-"$BASENAME" prints udev informations about a given device
+"$basename" prints udev informations about a given device
 
-Usage:   $BASENAME <device>
-Example: $BASENAME /dev/sda
+Usage:   $basename <device>
+Example: $basename /dev/sda
 
 If the device name doesn't start with "/dev/" it will automatically prefixed with "/dev/"
 END
@@ -35,41 +31,42 @@ if [[ $# != 1 ]]; then
 	usage >&2
 	exit 1
 else
-	DEVICE=$1
+	device=$1
 fi
 
 # If the device doesn't start with "/dev/" prefix it with "/dev/"
-if grep -qv '^/dev/' <<<$DEVICE; then
-	DEVICE=${DEVICE/#/\/dev\/}
+if grep -qv '^/dev/' <<<$device; then
+	device=${device/#/\/dev\/}
 fi
 
 # Does the device exist?
-if [[ ! -e $DEVICE ]]; then
-	echo "Error: Could not find $DEVICE" >&2
+if [[ ! -e $device ]]; then
+	echo "Error: Could not find $device" >&2
 	exit 2
 fi
 
 
 # Get device info with either "udevinfo" or "udevadm"
-if QUERY=$(which udevadm 2> /dev/null); then
-	$QUERY info --attribute-walk --name=$DEVICE 
-	RC=$?
+if query=$(which udevinfo 2> /dev/null); then
+	$query -a -p $(udevinfo -q path -n $device)
+	rc=$?
 else
-	if QUERY=$(which udevinfo 2> /dev/null); then
-		$QUERY -a -p $(udevinfo -q path -n $DEVICE)
-		RC=$?
+
+	if query=$(which udevadm 2> /dev/null); then
+		$query info --attribute-walk --name=$device 
+		rc=$?
 	else
 		echo "Error: Couldn't find udevadm or udevinfo in path" >&2
 		exit 2
 	fi
 fi
 
-RC=$((RC+$?))
+rc=$((rc+$?))
 
-if [[ $RC != 1 ]]; then
-	RC=1
+if [[ $rc != 1 ]]; then
+	rc=1
 fi
 
-exit $RC
+exit $rc
 
 # EOF
