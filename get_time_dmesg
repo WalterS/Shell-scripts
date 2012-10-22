@@ -1,0 +1,43 @@
+#!/bin/bash
+################################################################################
+# get_time.sh
+#
+# Add a given amount of seconds to boot time and print the result
+#
+# WS 20120921
+################################################################################
+
+# We need input
+DATE_DMESG=$1
+
+DATE_BOOT=
+
+
+if [[ -z "$DATE_DMESG" ]]; then
+	echo "Please enter an integer:"
+	while [[ -z "$DATE_DMESG" ]]; do
+		read DATE_DMESG
+		if ! egrep -q '^[0-9]+\.*[0-9]*'<<<$DATE_DMESG; then
+			DATE_DMESG=
+			echo "Please enter an integer:"
+		fi
+	done
+fi
+
+# Get last boot date
+if ! DATE_BOOT=$(date -d "$(who -b | awk '{print $(NF-1),$NF}')" '+%s'); then
+	exit 1
+if [[ -z "$DATE_BOOT" ]]; then
+	echo "Error: Could not get last boot date" >&2
+	exit 1
+fi
+
+# Add time string to boot date
+DATE_DMESG=$(awk -F\. '{print $1}'<<<$DATE_DMESG)
+
+# Print time string
+date -d @$(($DATE_BOOT+$DATE_DMESG))
+
+exit 0
+
+# EOF
