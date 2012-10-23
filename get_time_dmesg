@@ -1,6 +1,6 @@
 #!/bin/bash
 ################################################################################
-# get_time.sh
+# get_time_dmesg.sh
 #
 # Add a given amount of seconds to boot time and print the result
 #
@@ -12,7 +12,12 @@ DATE_DMESG=$1
 
 DATE_BOOT=
 
+# Only accept integers and floating point numbers
+if ! egrep -q '^[0-9]+\.*[0-9]*$'<<<$DATE_DMESG; then
+	DATE_DMESG=
+fi
 
+# Get interactive if no numer entered
 if [[ -z "$DATE_DMESG" ]]; then
 	echo "Please enter an integer:"
 	while [[ -z "$DATE_DMESG" ]]; do
@@ -25,8 +30,9 @@ if [[ -z "$DATE_DMESG" ]]; then
 fi
 
 # Get last boot date
-if ! DATE_BOOT=$(date -d "$(who -b | awk '{print $(NF-1),$NF}')" '+%s'); then
+if ! DATE_BOOT=$(date -d @$(($(date '+%s') - $(date -d @$(awk '{print $1}' /proc/uptime) '+%s'))) '+%s'); then
 	exit 1
+fi
 if [[ -z "$DATE_BOOT" ]]; then
 	echo "Error: Could not get last boot date" >&2
 	exit 1
