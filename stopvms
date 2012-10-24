@@ -10,57 +10,60 @@
 ############################################################
 
 # Where is our executable?
-vboxmanage=/usr/bin/VBoxManage
+if ! VBOXMANAGE=/usr/bin/VBoxManage; then
+	echo "Error: Could not find /usr/bin/VBoxManage">&2
+	exit 1
+fi
 
 IFS=$'\n'
-rc=0
-root=0
-vms=
-vm=
-name=
-uid=
+RC=0
+ROOT=0
+VMS=
+VM=
+NAME=
+VMID=
 
-if ! [[ -x "$(which $vboxmanage 2>/dev/null)" ]]; then
-	echo "Could not find command VBoxManage"
+if ! [[ -x "$(which $VBOXMANAGE 2>/dev/null)" ]]; then
+	echo "Error: Could not find command VBoxManage">&2
 	exit 1
 fi
 
 # Function for escalated shutdown
-switchoff (){
+switchoff_ (){
 
-for vm in $vms; do
-	local name=$(echo $vm | awk '{print $1}')
-	local uid=$(echo $vm | awk '{print $NF}')
-	echo "Shutting down $name"
+for VM in $VMS; do
+	local NAME=$(awk '{print $1}'<<<$VM)
+	local VMID=$(awk '{print $NF}'<<<$VM)
+	echo "Shutting down $NAME"
 
-# Construct command line:
-# If we're run as root, we need execute $vboxmanage with su
-if [[ $root = 1 ]]; then
-	local savestate="su - $user -c \"$vboxmanage controlvm $uid savestate\""
-	local acpi="su - $user -c \"$vboxmanage controlvm $uid acpipowerbutton\""
-	local poweroff="su - $user -c \"$vboxmanage controlvm $uid poweroff\""
-else
-	local savestate="$vboxmanage controlvm $uid savestate"
-	local acpi="$vboxmanage controlvm $uid acpipowerbutton"
-	local poweroff="$vboxmanage controlvm $uid poweroff"
-fi
+	# Construct command line:
+	# If we're run as root, we need to execute $VBOXMANAGE with su
+	if [[ $ROOT = 1 ]]; then
+		local SAVESTATE="su - $USER -c \"$VBOXMANAGE controlvm $VMID savestate\""
+		local ACPI="su - $USER -c \"$VBOXMANAGE controlvm $VMID acpipowerbutton\""
+		local POWEROFF="su - $USER -c \"$VBOXMANAGE controlvm $VMID poweroff\""
+	else
+		local SAVESTATE="$VBOXMANAGE controlvm $VMID savestate"
+		local ACPI="$VBOXMANAGE controlvm $VMID acpipowerbutton"
+		local POWEROFF="$VBOXMANAGE controlvm $VMID poweroff"
+	fi
 	# Running escalated shutdown tries, from saving state to poweroff
 	# "eval" is needed because our command string contains quotes
-	if ! eval $savestate 2> /dev/null; then
-		echo "Could not save state of VM $name, trying ACPI shutdown" >&2
-		if ! eval $acpi 2> /dev/null; then
-			echo "ACPI shutdown for VM $name failed, trying poweroff" >&2
-			if ! eval $poweroff 2> /dev/null; then
-				echo "Could not shut down VM $name, UID $uid" >&2
-				((rc++))
+	if ! eval $SAVESTATE 2> /dev/null; then
+		echo "Could not save state of VM $NAME, trying ACPI shutdown" >&2
+		if ! eval $ACPI 2> /dev/null; then
+			echo "ACPI shutdown for VM $NAME failed, trying poweroff" >&2
+			if ! eval $POWEROFF 2> /dev/null; then
+				echo "Error: Could not shut down VM $NAME, UID $VMID" >&2
+				((RC++))
 			else
-				echo "Poweroff of VM $name successful"
+				echo "Poweroff of VM $NAME successful"
 			fi
 		else
-			echo "ACPI shutdown of VM $name successful"
+			echo "ACPI shutdown of VM $NAME successful"
 		fi
 	else
-		echo "Saved state of VM $name"
+		echo "Saved state of VM $NAME"
 
 	fi
 done
@@ -69,32 +72,32 @@ done
 # Check for root rights
 if [[ "$(id -u)" != "0" ]]; then
 	# Get list of running VMs
-	vms=$($vboxmanage list runningvms | awk -F' +|{|}' '{print $1,$(NF-1)}' 2>/dev/null)
-	if [[ -z "$vms" ]]; then
+	VMS=$($VBOXMANAGE list runningvms | awk -F' +|{|}' '{print $1,$(NF-1)}' 2>/dev/null)
+	if [[ -z "$VMS" ]]; then
 		echo "Nothing to do"
 		exit 0
 	else
-		switchoff
+		switchoff_
 	fi
 else
-	root=1
+	ROOT=1
 	# Search for users running VMs
-	users=$(ps -ef | awk '(/VBoxHeadless/ || /VirtualBox/) && /-startvm/ && $8 !~/^awk$/ {print $1}' | sort -u)
-	if [[ -z "$users" ]]; then
+	USERS=$(ps -ef | awk '(/VBoxHeadless/ || /VirtualBox/) && /-startv[m]/ {print $1}' | sort -u)
+	if [[ -z "$USERS" ]]; then
 		echo "Nothing to do"
 		exit 0
 	else
-		# List VMs run by $user
-		for user in $users ; do
-			vms=$(su - $user -c "$vboxmanage list runningvms" | awk -F' +|{|}' '{print $1,$(NF-1)}' 2>/dev/null)
-			if [[ -n "$vms" ]]; then
-				echo "Stopping VMs for user ${user}:"
-				switchoff
+		# List VMs run by $USER
+		for USER in $USERS ; do
+			VMS=$(su - $USER -c "$VBOXMANAGE list runningvms" | awk -F' +|{|}' '{print $1,$(NF-1)}' 2>/dev/null)
+			if [[ -n "$VMS" ]]; then
+				echo "Stopping VMs for user ${USER}:"
+				switchoff_
 			fi
 		done
 	fi
 fi
 
-exit $rc
+exit $RC
 
 # EOF
