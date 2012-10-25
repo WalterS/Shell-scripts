@@ -1,6 +1,7 @@
 #!/bin/bash
+
 ################################################################################
-# get_time_dmesg.sh
+# get_time_dmesg
 #
 # Add a given amount of seconds to boot time and print the result
 #
