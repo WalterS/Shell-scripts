@@ -43,8 +43,9 @@ if ! touch $log &> /dev/null; then
 fi
 
 # Check periodically if process is running
+process=$(sed 's/[[:alnum:]]/[&]/'<<<"$process")
 while [[ $is_running = 1 ]]; do
-	prc=$(/usr/local/bin/psgrep "${process}" | awk '!/BackupPC -d/ && ! /BackupPC_trashClean/')
+	prc=$("${process}" | awk '/'$process'/ && (!/BackupPC -d/ && ! /BackupPC_trashClean/)')
 	if [[ -z "$prc" ]]; then
 		is_running=0
 	else
