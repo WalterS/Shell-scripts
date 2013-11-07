@@ -1,0 +1,138 @@
+#!/bin/bash
+
+############################################################
+# weather_graph
+#
+# Creates graph from RRD file created by "weather"
+# Usage: weather_graph [day|week|month|year]
+#
+# WS 20120824
+############################################################
+
+BASEDIR=/home/walter/doc/weather
+RRD=${BASEDIR}/weather.rrd
+if ! [[ -f $RRD ]]; then
+	echo "Error: RRD file $RRD not found" >&2
+	exit 1
+fi
+C=0
+T=
+T_COUNT=2
+RANGE=${@:-day week month}
+
+
+for T in $RANGE; do
+	case $T in
+		"day") C=1 ;;
+		"week") C=2 ;;
+		"month") C=3 ;;
+		"year") C=4 ;;
+	esac
+	rrdtool graph ${BASEDIR}/temp${C}${T}.png -s "now - $T_COUNT $T" -e 'now' \
+	-X 0 --font WATERMARK:7: \
+	--watermark "$(date)" \
+	--title "Temperature last $T_COUNT ${T}s" \
+	--vertical-label "°C" \
+	--slope-mode \
+	--right-axis 1:0 \
+	DEF:tempmin1=${RRD}:temp1:MIN \
+	DEF:tempmax1=${RRD}:temp1:MAX \
+	DEF:temp1=${RRD}:temp1:AVERAGE \
+	DEF:tempmin2=${RRD}:temp2:MIN \
+	DEF:tempmax2=${RRD}:temp2:MAX \
+	DEF:temp2=${RRD}:temp2:AVERAGE \
+	DEF:tempmin3=${RRD}:temp3:MIN \
+	DEF:tempmax3=${RRD}:temp3:MAX \
+	DEF:temp3=${RRD}:temp3:AVERAGE \
+	LINE1:temp1#FF0000:"Outdoors"  \
+	GPRINT:temp1:LAST:"Cur.\: %3.1lf" \
+	GPRINT:temp1:AVERAGE:"Avg.\: %3.1lf" \
+	GPRINT:temp1:MIN:"Min.\: %3.1lf" \
+	GPRINT:temp1:MAX:"Max.\: %3.1lf\n" \
+	LINE2:temp2#000000:"Study   " \
+	GPRINT:temp2:LAST:"Cur.\: %3.1lf" \
+	GPRINT:temp2:AVERAGE:"Avg.\: %3.1lf" \
+	GPRINT:temp2:MIN:"Min.\: %3.1lf" \
+	GPRINT:temp2:MAX:"Max.\: %3.1lf\n" \
+	LINE3:temp3#00C0C0:"Bedroom " \
+	GPRINT:temp3:LAST:"Cur.\: %3.1lf" \
+	GPRINT:temp3:AVERAGE:"Avg.\: %3.1lf" \
+	GPRINT:temp3:MIN:"Min.\: %3.1lf" \
+	GPRINT:temp3:MAX:"Max.\: %3.1lf\n"
+
+	rrdtool graph ${BASEDIR}/hum${C}${T}.png -s "now - $T_COUNT $T" -e 'now' \
+	-X 0 --font WATERMARK:7: \
+	--watermark "$(date)" \
+	--title "Humidity last $T_COUNT ${T}s" \
+	--vertical-label "%" \
+	--slope-mode \
+	--right-axis 1:0 \
+	DEF:hummin1=${RRD}:hum1:MIN \
+	DEF:hummax1=${RRD}:hum1:MAX \
+	DEF:hum1=${RRD}:hum1:AVERAGE \
+	DEF:hummin2=${RRD}:hum2:MIN \
+	DEF:hummax2=${RRD}:hum2:MAX \
+	DEF:hum2=${RRD}:hum2:AVERAGE \
+	DEF:hummin3=${RRD}:hum3:MIN \
+	DEF:hummax3=${RRD}:hum3:MAX \
+	DEF:hum3=${RRD}:hum3:AVERAGE \
+	LINE1:hum1#FF0000:"Outdoors"  \
+	GPRINT:hum1:LAST:"Cur.\: %3.0lf" \
+	GPRINT:hum1:AVERAGE:"Avg.\: %3.0lf" \
+	GPRINT:hum1:MIN:"Min.\: %3.0lf" \
+	GPRINT:hum1:MAX:"Max.\: %3.0lf\n" \
+	LINE2:hum2#000000:"Study   " \
+	GPRINT:hum2:LAST:"Cur.\: %3.0lf" \
+	GPRINT:hum2:AVERAGE:"Avg.\: %3.0lf" \
+	GPRINT:hum2:MIN:"Min.\: %3.0lf" \
+	GPRINT:hum2:MAX:"Max.\: %3.0lf\n" \
+	LINE3:hum3#00C0C0:"Bedroom " \
+	GPRINT:hum3:LAST:"Cur.\: %3.0lf" \
+	GPRINT:hum3:AVERAGE:"Avg.\: %3.0lf" \
+	GPRINT:hum3:MIN:"Min.\: %3.0lf" \
+	GPRINT:hum3:MAX:"Max.\: %3.0lf\n"
+
+	case $T in
+		"day")
+			PARAM='-Y' ;;
+#			PARAM='--x-grid HOUR:1:DAY:1:HOUR:3:0:%-H'
+#			PARAM='--x-grid HOUR:1:HOUR:6:HOUR:2:0:%-H'
+		"year")
+			PARAM='-Y -S 86400' ;;
+		*)
+			PARAM= ;;
+	esac
+
+	T_COUNT1=$((T_COUNT+1))
+
+#	rrdtool graph ${BASEDIR}/temp_hum${C}${T}.png -s "now - $T_COUNT1 $T" -e 'now' -w 785 -h 120 \
+	rrdtool graph ${BASEDIR}/temp_hum${C}${T}.png -s "now - $T_COUNT1 $T" -e 'now' -w 600 -h 120 \
+	$PARAM \
+	-X 0 --font WATERMARK:8: \
+	--watermark "$(date) ($(date -u '+%H:%M:%S UTC'))" \
+	--title "Temperature/humidity last $T_COUNT1 ${T}s" \
+	--units-length 3 \
+	--vertical-label "Temperature" \
+	--slope-mode \
+	--right-axis 2:0 \
+	--right-axis-label "Humidity" \
+	DEF:temp1=${RRD}:temp1:AVERAGE \
+	DEF:tempmin1=${RRD}:temp1:MIN \
+	DEF:tempmax1=${RRD}:temp1:MAX \
+	DEF:hum1=${RRD}:hum1:AVERAGE \
+	CDEF:hm1='hum1,2,/' \
+	VDEF:hummin1=hm1,MINIMUM \
+	VDEF:hummax1=hm1,MAXIMUM \
+	LINE1:temp1#FF0000:"Temperature\t"  \
+	GPRINT:temp1:LAST:"Current\: %2.1lf" \
+	GPRINT:temp1:AVERAGE:"Average\: %2.1lf" \
+	GPRINT:temp1:MIN:"Minimum\: %2.1lf" \
+	GPRINT:temp1:MAX:"Maximum\: %2.1lf\n" \
+	LINE2:hm1#0000FF:"Humidity\t" \
+	GPRINT:hum1:LAST:"Current\: %2.0lf" \
+	GPRINT:hum1:AVERAGE:"  Average\: %2.0lf" \
+	GPRINT:hum1:MIN:"  Minimum\: %2.0lf" \
+	GPRINT:hum1:MAX:"  Maximum\: %2.0lf\n"
+done
+
+#rrdtool create weather.rrd --step 300 DS:temp1:GAUGE:600:-40:50 DS:temp2:GAUGE:600:-40:50 DS:temp3:GAUGE:600:-40:50 DS:temp4:GAUGE:600:-40:50 DS:temp5:GAUGE:600:-40:50 DS:temp6:GAUGE:600:-40:50 DS:temp7:GAUGE:600:-40:50 DS:temp8:GAUGE:600:-40:50 DS:hum1:GAUGE:600:0:100 DS:hum2:GAUGE:600:0:100 DS:hum3:GAUGE:600:0:100 DS:hum4:GAUGE:600:0:100 DS:hum5:GAUGE:600:0:100 DS:hum6:GAUGE:600:0:100 DS:hum7:GAUGE:600:0:100 DS:hum8:GAUGE:600:0:100 DS:temp9:GAUGE:600:-40:50 DS:hum9:GAUGE:600:0:100 DS:wind9:GAUGE:600:0:200 DS:rain9:DERIVE:1200:0:U DS:israin9:GAUGE:600:0:1 RRA:AVERAGE:0.5:1:960 RRA:MIN:0.5:96:3600 RRA:MAX:0.5:96:3600 RRA:AVERAGE:0.5:96:3600
