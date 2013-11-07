@@ -1,0 +1,88 @@
+#!/bin/bash
+
+################################################################################
+# weather
+#
+# Get weather sensor data from USB receiver USB-WDE1
+#
+# WS 20120824
+################################################################################
+# Error count reset on good readings, faster awk, mail address as variable
+# WS20121115
+####
+# Configurable update frquency (TDIFF)
+# WS 20130329
+
+
+MAIL_ADD="nn@nn.nn"
+RRD=~/doc/weather/weather.rrd
+LOG=~/doc/weather/${0##*/}.errlog
+TDIFF=20	# Min. seconds between updates
+FIELDS=6	# No. of data fields
+WAIT=3
+ERRORCOUNT=0
+PLURAL=
+FIELDS_DIFF=
+PORT=
+DATE=0
+DATE_OLD=0
+
+FIELDS=$((FIELDS+2))	# 2 header fields
+
+# Get USB port
+PORT=$(udevadm info --export-db 2>/dev/null|awk -F'=' '/^S:.*Silicon_Labs_ELV_USB/,/DEVPATH=/ {if (/DEVNAME=/) {print $NF;exit}}')
+if [[ ! $PORT =~ ^/dev/tty.*$ ]]; then
+	PORT=$(dmesg | awk '/cp210x converter now attached to tty/ {port=$NF} END {print "/dev/"port}')
+fi
+if [[ $PORT =~ ^/dev/$ ]]; then
+	PORT='/dev/ttyUSB0'
+	echo "Error: No suitable USB port found, trying $PORT" >&2
+fi
+
+send_mail_() {
+FIELDS_DIFF=$(($FIELDS-$FIELDS_CURR))
+if [[ $FIELDS_DIFF = 1 ]]; then
+	PLURAL=
+else
+	PLURAL=s
+fi
+
+mail -s "Error on temperature reading" $MAIL_ADD<<END
+$(date '+%d.%m.%Y, %H:%M')
+
+Temperature readout misses $FIELDS_DIFF field$PLURAL
+END
+
+#ERRORCOUNT=0
+
+}
+
+# Connect to serial port
+socat ${PORT},b9600 STDOUT | \
+while read LINE; do
+	if [[ "$LINE" =~ ^'$1' ]]; then
+		# Send mail on error
+		FIELDS_CURR=$(awk -F\; 'BEGIN {n=0} {for (i=1;i<NF;i++) if ($i~/.+/) {n++}} END {print n}'<<<"$LINE")
+		if [[ $FIELDS_CURR != $FIELDS ]]; then
+			((ERRORCOUNT++))
+			echo "$(date '+%Y-%m-%d %H:%M:%S'): Deviating field count #$ERRORCOUNT"
+			if [[ $ERRORCOUNT = $WAIT ]]; then
+				send_mail_
+			fi
+		else
+			ERRORCOUNT=0
+		fi
+		DATE=$(date '+%s')
+		# Prevent multiple updates within TDIFF
+		[[ "$((DATE-DATE_OLD))" -le $TDIFF ]] && continue
+		DATE_OLD=$DATE
+		# Format data for RRD
+		DATA="${DATE}$(tr ';,' ':.'<<<${LINE#?1;1;})"
+		DATA=$(sed 's/::/:U:/g;s/::/:U:/g;s/U:U:U:U:0/U:U:U:U/'<<<$DATA)
+		echo "$(date '+%Y-%m-%d %H:%M:%S'): $DATA"
+		# Write to RRD file
+		if ! rrdtool update $RRD $DATA 2>>$LOG; then
+			echo $DATA >> $LOG
+		fi
+	fi
+done
