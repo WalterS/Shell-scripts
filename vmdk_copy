@@ -1,0 +1,68 @@
+#!/bin/sh
+################################################################################
+# vmdk_copy
+# Copy VM files without blowing VMDK files up to their nominal size
+#
+# WS 20131128
+################################################################################
+
+SOURCE=$1
+TARGET=$2
+RC=0
+MYNAME=`basename $0`
+
+usage(){
+cat << END
+
+$MYNAME copies VM files without blowing VMDK files up to their nominal size.
+
+Usage: $MYNAME <source_directory> <targetdirectory>
+
+If the target directory does not exist it will be created.
+
+END
+
+}
+
+# Check input
+if [ $# -ne 2 ]; then
+	usage >&2
+	exit 1
+fi
+
+if ! cd "$SOURCE"; then
+	echo "Source directory $SOURCE does not exist"
+	exit 1
+fi
+
+# Check target directory
+if ! [ -d "$TARGET" ]; then
+	echo "Creating target directory"
+	mkdir -p "$TARGET"
+fi
+if ! [ -d "$TARGET" ]; then
+	echo "Could not create target directory $TARGET"
+	exit 1
+fi
+
+# Copy VMDK files in thin mode
+for VMDK in *vmdk; do
+	if ! echo $VMDK|grep -q flat; then
+		if ! vmkfstools -i $VMDK -d thin "${TARGET}/$VMDK"; then
+			echo "Could not copy $VMDK, bailing out"
+			exit 1
+		fi
+	fi
+done
+
+# Copy the rest of the VM files
+for FILE in `ls|grep -v vmdk`; do
+	if ! cp -p "$FILE" "${TARGET}/"; then
+		echo "Could not copy $FILE to $TARGET"
+		exit 1
+	fi
+done
+
+# EOF
+
+
