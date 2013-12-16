@@ -1,0 +1,57 @@
+#!/bin/bash
+
+################################################################################
+# git_merge
+# Merge developing branch into release branch with tagging
+#
+# The tag will be the version entry in $METADATA which is expected to be a
+# single line containing only "version" and the version string.
+# The Git repository is expected to have a developing branch ($MASTER) and a
+# release branch ($RELEASE).
+#
+# WS 20131216
+################################################################################
+
+########### Configure here ###########
+
+# File containing version string
+METADATA='metadata.rb'
+# Name of developing branch
+MASTER=master
+# Name of release branch
+RELEASE=release
+
+######### Configuration end ##########
+
+if ! git checkout $RELEASE; then
+	echo "Could not checkout $RELEASE branch, please check." >&2
+	exit 1
+fi
+if ! git fetch --tags; then
+	echo "Could not fetch tags, please check." >&2
+	exit 1
+fi
+if ! git merge $MASTER; then
+	echo "Could not merge $MASTER into $RELEASE, bailing out." >&2
+	exit 1
+fi
+VERSION=$(awk '/[Vv]ersion/ {gsub(/\"/,"");print $NF}' $METADATA)
+if [[ -z "$VERSION" ]]; then
+	echo "Could not determine version, bailing out." >&2
+	exit 1
+fi
+if git tag|grep -qw $VERSION; then
+	echo "Version $VERSION already exists, removing it"
+	git push origin $RELEASE :refs/tags/$VERSION
+	if [[ $? -ne 0 ]]; then
+		echo "Could not delete remote version tag \"$VERSION\", bailing out" >&2
+		exit 1
+	fi
+	git tag -d $VERSION
+fi
+git tag $VERSION
+git push --tags origin $RELEASE
+git checkout $MASTER
+
+# EOF
+
