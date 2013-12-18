@@ -1,13 +1,15 @@
 #!/bin/bash
 
 ################################################################################
-# git_merge
+# git_release
 # Merge development branch into release branch with tagging
 #
 # The tag will be the version entry in $METADATA which is expected to be a
 # single line containing only "version" and the version string.
 # The Git repository is expected to have a development branch ($MASTER) and a
 # release branch ($RELEASE).
+# For determining the version, $METADATA has to contain a line starting with
+# version and a version string in (double) quotes.
 #
 # WS 20131216
 ################################################################################
@@ -35,7 +37,7 @@ if ! git merge $MASTER; then
 	echo "Could not merge $MASTER into $RELEASE, bailing out." >&2
 	exit 1
 fi
-VERSION=$(awk '/[Vv]ersion/ {gsub(/\"/,"");print $NF}' $METADATA)
+VERSION=$(awk -F"[\"']" '$1~/^[Vv]ersion/ {print $(NF-1);exit}' $METADATA)
 if [[ -z "$VERSION" ]]; then
 	echo "Could not determine version, bailing out." >&2
 	exit 1
