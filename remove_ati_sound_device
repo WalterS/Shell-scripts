@@ -1,0 +1,41 @@
+#!/bin/bash
+
+############################################################
+# remove_ati_sound_device
+#
+# Being fed up with HDMI ELD error messages bloating syslog
+# I wrote this script to be executed from rc.local
+#
+# WS 20131231
+############################################################
+
+# Check if started from shell
+if [[ -n "$TERM" ]]; then
+	INTERACTIVE=1
+fi
+RC=0
+
+# Get HDMI sound device number
+CARD=$(lspci|awk 'BEGIN {IGNORECASE=1} /audio device:.*hdmi.*radeon/ {print $1}')
+
+if [[ -n "$CARD" ]]; then
+	# Get device path
+	DEVICE=$(find /sys/devices -name \*$CARD 2>/dev/null)
+	if [[ -n "$DEVICE" ]]; then
+		echo 1 > $DEVICE/remove
+	else
+		RC=1
+		if [[ $INTERACTIVE = 1 ]]; then
+			echo "Error: Device path for \"$CARD\" not found" >&2
+		fi
+	fi
+else
+	if [[ $INTERACTIVE = 1 ]]; then
+		echo "HDMI sound device not present or already removed"
+	fi
+fi
+
+exit $RC
+
+# EOF
+
