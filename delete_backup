@@ -1,0 +1,235 @@
+#!/bin/bash
+
+############################################################
+# delete_backup
+#
+# Source: http://sourceforge.net/apps/mediawiki/backuppc/index.php?title=How_to_delete_backups
+# WS 20140106
+############################################################
+#
+#this script contributed by Matthias Meyer
+#note that if your $Topdir seems to be wrong (because it is empty), the script will ask you
+#the new location.
+#
+#10/2009 JJK: Modified by Jeffrey J. Kosowsky
+#	add --nightly
+#	check if user eguals root or backuppc
+#11/2009 MMT: Modified by Matthias Meyer
+#	add --remove
+#
+#10/2010 MMT: Modified by Matthias Meyer
+#	check /etc/backuppc as well as /etc/BackupPC
+#
+#01/2014 WS
+# Adapted for Bash, typos corrected, error messages to stdout,
+# concise listing, added long options to help text, variables
+# to upper case, unecessary greps and variable conversions
+# removed
+
+declare TOPDIR LOGDIR	# directories, evaluated by /etc/backuppc/config.pl
+declare CONFIGDIR
+MYNAME=${0##*/}
+
+usage_ (){
+cat << EOH
+$MYNAME deletes specified BackupPC backups.
+Attention, if a full backup is deleted, all depending incremental backups will
+also be deleted.
+
+Usage: $MYNAME [-c <client> [-d <backupnumber> -b <before data> -r [-f]] | [-l]] | [-n]
+
+Options:
+-b|--before <date>
+    Delete all backups before this date (YYYY-MM-DD)
+-c|--client <client>
+    Client machine for which the backup was made
+-d|--delete <backupnumber>
+    Specific backup number to be deleted
+-f|--force
+    Force to run Backuppc_nightly to free space afterwards
+-l|--list
+    List backups of <client>
+-n|--nightly
+    Run Backuppc_nightly only
+-r|--remove
+    Delete all backups
+-h|--help
+    Show this help text
+
+Examples:
+List backups of <client>
+  $MYNAME -c <client> -l
+
+Remove backup #3 of <client>
+  $MYNAME -c <client> -d 3
+
+Remove all backups before 2013-07-02 of <client>
+  $MYNAME -c <client> -b 2013-07-02
+EOH
+}
+
+run_BackupPC_nightly () {
+path=${0%/BackupPC*}
+if [[ ! -e $path/BackupPC_serverMesg ]]; then
+	path="/usr/share/BackupPC/bin"
+fi
+echo "Running BackupPC_nightly..."
+$path/BackupPC_serverMesg BackupPC_nightly run
+$path/BackupPC_serverMesg log Triggered by $MYNAME
+echo "$(date "+%Y-%m-%d %T") $MYNAME BackupPC_nightly scheduled via daemon" >> $LOGDIR/LOG
+}
+
+#JJK: NOTE NFS shares may only be accessible by 'backuppc' (not even by root if not 'no_root_squash') so run as user 'backuppc'
+if [[ "$(id -un)" != "backuppc" && "$(id -un)" != "root" ]]; then
+	echo 'Must be either "root" or "backuppc" to run' >&2
+	exit 1
+fi
+if [[ "$(id -un)" != "backuppc" ]]; then
+	exec su backuppc -s /bin/bash -c "$0 $*"
+fi
+
+if [[ $# -eq 0 ]]; then
+	usage_ >&2
+	exit 1
+fi
+
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+	-c | --client )
+		shift; CLIENT=$(tr "[:upper:]" "[:lower:]"<<<$1); shift;;
+	-b | --before )
+		shift; BDATE=$1; shift;;
+	-d | --delete )
+		shift; BNUMBER=$1; shift;;
+	-r | --remove )
+		ENTIRE="true"; shift;;
+	-f | --force )
+		NIGHTLY="true"; shift;;
+	-n | --nightly )
+		NIGHTLYONLY="true"; shift;;
+	-l | --list )
+		LIST="true"; shift;;
+	-h | --help)
+		usage_
+		exit 0
+		;;
+	*)
+		usage >&2
+		exit 1
+		;;
+	esac
+done
+
+if [ -z "$NIGHTLYONLY" ] && ( [ -z "$CLIENT" ] || [ -z "$LIST" ] && [ -z "$BNUMBER" ] && [ -z "$BDATE" ] && [ -z "$ENTIRE" ] ); then
+	usage_ >&2
+	exit 1
+fi
+
+if [[ -e /etc/backuppc/config.pl ]]; then
+	CONFIGDIR="/etc/backuppc"
+elif [[ -e /etc/BackupPC/config.pl ]]; then
+	CONFIGDIR="/etc/BackupPC"
+else
+	echo "BackupPC's config.pl not found" >&2
+	exit 1
+fi
+
+TOPDIR=$(awk -F"['\"]" '/[[:blank:]]*\$Conf{TopDir}/ {print $(NF-1)}' $CONFIGDIR/config.pl)
+
+ls $TOPDIR/pc &> /dev/null
+while [[ $? != 0 ]]; do
+	read -p "$TOPDIR is not accessible. Please enter backup location." TOPDIR
+	ls $TOPDIR/pc &> /dev/null
+done
+
+LOGDIR=$(awk -F"['\"]" '/[[:blank:]]*\$Conf{LogDir}/ {print $(NF-1)}' $CONFIGDIR/config.pl)
+if [[ ! -e $LOGDIR/LOG ]]; then
+	LOGDIR="$TOPDIR/log"
+fi
+
+if [[ -n "$NIGHTLYONLY" ]]; then
+	run_BackupPC_nightly
+	exit 0
+elif [[ -n "$ENTIRE" ]]; then
+# The entire host should be removed. Therefore we will remove it
+# from the host list as well as its client configuration
+	while read CLINE; do
+		HOST=$(awk '{print tolower($1)}'<<<$CLINE)
+		if [[ "$HOST" != "$CLIENT" ]]; then
+			echo "$CLINE" >> $CONFIGDIR/hosts.new
+		fi
+	done < $CONFIGDIR/hosts
+	chown --reference=$CONFIGDIR/hosts $CONFIGDIR/hosts.new
+	chmod --reference=$CONFIGDIR/hosts $CONFIGDIR/hosts.new
+	mv $CONFIGDIR/hosts.new $CONFIGDIR/hosts &> /dev/null
+	rm -f $CONFIGDIR/$CLIENT.pl* &> /dev/null
+fi
+
+if ! ls $TOPDIR/pc/$CLIENT &> /dev/null; then
+	echo "$CLIENT has no backups" >&2
+	exit 1
+fi
+
+if [[ -n "$LIST" ]]; then
+	echo " No. Type    Date"
+	echo "====+====+=========="
+	while read CLINE; do
+		BACKUPNUMBER=$(awk '{print $1}'<<<$CLINE)
+		BACKUPTYPE=$(awk '{print $2}'<<<$CLINE)
+		BACKUPTIME=$(stat -c "%y" $TOPDIR/pc/$CLIENT/$BACKUPNUMBER/backupInfo | awk '{print $1}')
+		echo "$(awk '{print $1,$2}'<<<$CLINE) $BACKUPTIME"
+#		echo "Backup number $BACKUPNUMBER - $BACKUPTYPE backup from $BACKUPTIME"
+	done < $TOPDIR/pc/$CLIENT/backups
+	exit 0
+fi
+
+if [[ -n "$BNUMBER" && ! -e $TOPDIR/pc/$CLIENT/$BNUMBER ]]; then
+	echo "Backup number $BNUMBER does not exist for client $CLIENT" >&2
+	exit 1
+fi
+
+if [[ -z "$ENTIRE" && -e $TOPDIR/pc/$CLIENT/backups ]]; then
+	DELETE2FULL="false"
+	rm -f $TOPDIR/pc/$CLIENT/backups.new &> /dev/null
+	touch $TOPDIR/pc/$CLIENT/backups.new
+	while read CLINE; do
+		BACKUPNUMBER=$(awk '{print $1}'<<<$CLINE)
+		BACKUPTIME=$(stat -c "%y" $TOPDIR/pc/$CLIENT/$BACKUPNUMBER/backupInfo | awk '{print $1}')
+		BACKUPTYPE=$(awk '{print $2}'<<<$CLINE)
+		if [[ $BACKUPTYPE == "full" ]]; then
+			DELETE2FULL="false"
+		fi
+		if [[ "$BACKUPTIME" < "$BDATE" || $BACKUPNUMBER == "$BNUMBER" || $DELETE2FULL == "true" ]]; then
+			if [[ $BACKUPTYPE == "full" ]]; then
+				if [[ $DELETE2FULL == "false" ]]; then
+					DELETE2FULL="true"
+				else
+					DELETE2FULL="false"
+				fi
+			fi
+			BNUMBER=$BACKUPNUMBER
+			echo "Removing $TOPDIR/pc/$CLIENT/$BNUMBER"
+			rm -fr $TOPDIR/pc/$CLIENT/$BNUMBER &> /dev/null
+			rm -f $TOPDIR/pc/$CLIENT/XferLOG.$BNUMBER &> /dev/null
+			rm -f $TOPDIR/pc/$CLIENT/XferLOG.$BNUMBER.z &> /dev/null
+			echo "$(date +"%Y-%m-%d %T") $MYNAME $TOPDIR/pc/$CLIENT/$BNUMBER deleted" >> $LOGDIR/LOG
+			echo "$(date +"%Y-%m-%d %T") $MYNAME remove backup $BNUMBER" >> $TOPDIR/pc/$CLIENT/LOG.$(date "+%m%Y")
+		fi
+		if [[ "$BACKUPNUMBER" != "$BNUMBER" ]]; then
+			echo "$CLINE" >> $TOPDIR/pc/$CLIENT/backups.new
+		fi
+	done < $TOPDIR/pc/$CLIENT/backups
+	chown --reference=$TOPDIR/pc/$CLIENT/backups $TOPDIR/pc/$CLIENT/backups.new &> /dev/null
+	chmod --reference=$TOPDIR/pc/$CLIENT/backups $TOPDIR/pc/$CLIENT/backups.new &> /dev/null
+	mv $TOPDIR/pc/$CLIENT/backups.new $TOPDIR/pc/$CLIENT/backups &> /dev/null
+	echo "$(date "+%Y-%m-%d %T") $MYNAME $TOPDIR/pc/$CLIENT/backups updated" >> $LOGDIR/LOG
+elif [[ -n "$ENTIRE" ]]; then
+	rm -fr $TOPDIR/pc/$CLIENT &> /dev/null
+	echo "$(date +"%Y-%m-%d %T") $MYNAME $TOPDIR/pc/$CLIENT entirely removed" >> $LOGDIR/LOG
+fi
+if [[ "$NIGHTLY" ]]; then
+	run_BackupPC_nightly
+fi
+
+exit $?
+
