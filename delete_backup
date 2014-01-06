@@ -7,8 +7,8 @@
 # WS 20140106
 ############################################################
 #
-#this script contributed by Matthias Meyer
-#note that if your $Topdir seems to be wrong (because it is empty), the script will ask you
+#This script ihas been contributed by Matthias Meyer
+#Note that if your $TOPDIR seems to be wrong (because it is empty), the script will ask you
 #the new location.
 #
 #10/2009 JJK: Modified by Jeffrey J. Kosowsky
@@ -23,7 +23,7 @@
 #01/2014 WS
 # Adapted for Bash, typos corrected, error messages to stdout,
 # concise listing, added long options to help text, variables
-# to upper case, unecessary greps and variable conversions
+# to upper case, unnecessary greps and variable conversions
 # removed
 
 declare TOPDIR LOGDIR	# directories, evaluated by /etc/backuppc/config.pl
