@@ -2,17 +2,24 @@
 
 ################################################################################
 # git_release
+#
 # Merge development branch into release branch with tagging
 #
 # The tag will be the version entry in $METADATA which is expected to be a
-# single line containing only "version" and the version string.
+# single line containing only "version" and the version string in (double)
+# quotes.
 # The Git repository is expected to have a development branch ($MASTER) and a
 # release branch ($RELEASE).
-# For determining the version, $METADATA has to contain a line starting with
-# version and a version string in (double) quotes.
+# Any error will lead to abortion.
+# Please be aware that any local change in the $RELEASE branch will be
+# dicscarded.
 #
 # WS 20131216
 ################################################################################
+# Added check at beginning if we are in the right branch, a check for the
+# version file, a merge check and added "-B" to $RELEASE branch checkout.
+# WS 20140115
+
 
 ########### Configure here ###########
 
@@ -25,33 +32,67 @@ RELEASE=release
 
 ######### Configuration end ##########
 
-if ! git checkout $RELEASE; then
-	echo "Could not checkout $RELEASE branch, please check." >&2
+# Check if we are in the $MASTER branch
+if ! git branch|grep -q "\* $MASTER"; then
+	echo "Error: Not in branch $MASTER." >&2
 	exit 1
 fi
-if ! git fetch --tags; then
-	echo "Could not fetch tags, please check." >&2
+# Check for version file
+if [[ ! -f "$METADATA" ]]; then
+	echo "Error: Could not find file containing version string (\"$METADATA\")." >&2
 	exit 1
 fi
-if ! git merge $MASTER; then
-	echo "Could not merge $MASTER into $RELEASE, bailing out." >&2
-	exit 1
-fi
-VERSION=$(awk -F"[\"']" '$1~/^[Vv]ersion/ {print $(NF-1);exit}' $METADATA)
-if [[ -z "$VERSION" ]]; then
-	echo "Could not determine version, bailing out." >&2
-	exit 1
-fi
-if git tag|grep -qw $VERSION; then
-	echo "Version $VERSION already exists, removing it"
-	git push origin $RELEASE :refs/tags/$VERSION
-	if [[ $? -ne 0 ]]; then
-		echo "Could not delete remote version tag \"$VERSION\", bailing out" >&2
+# Check for unpushed commits
+if git status 2>/dev/null|grep -q ahead; then
+	echo "Pushing your commits to $MASTER"
+	if ! git push origin $MASTER; then
+		echo "Error: Pushing your commits to $MASTER failed." >&2
 		exit 1
 	fi
-	git tag -d $VERSION
 fi
-git tag $VERSION
+# Change to $RELEASE branch
+if ! git checkout -B $RELEASE; then
+	echo "Error: Could not checkout $RELEASE branch, please check." >&2
+	exit 1
+fi
+# Get tags
+if ! git fetch --tags; then
+	echo "Error: Could not fetch tags, please check." >&2
+	exit 1
+fi
+# Check merge
+if MSG=$(git merge --no-commit --no-ff $MASTER); then
+	if grep -q "Already up-to-date"<<<$MSG; then
+		echo "Nothing to merge"
+		git checkout $MASTER
+		exit
+	fi
+else
+	echo "Error: Merge test failed." >&2
+	exit 1
+fi
+# Merge $MASTER into $RELEASE
+if ! git merge $MASTER; then
+	echo "Error: Could not merge $MASTER into $RELEASE." >&2
+	exit 1
+fi
+# Get version string
+VERSION=$(awk -F"[\"']" '$1~/^[Vv]ersion/ {print $(NF-1);exit}' $METADATA)
+if [[ -z "$VERSION" ]]; then
+	echo "Error: Could not determine version." >&2
+	exit 1
+fi
+# Set version
+if git tag|grep -qw "$VERSION"; then
+	echo "Version $VERSION already exists, removing it"
+	git push origin $RELEASE :refs/tags/"$VERSION"
+	if [[ $? -ne 0 ]]; then
+		echo "Error: Could not delete remote version tag \"$VERSION\"." >&2
+		exit 1
+	fi
+	git tag -d "$VERSION"
+fi
+git tag "$VERSION"
 git push --tags origin $RELEASE
 git checkout $MASTER
 
