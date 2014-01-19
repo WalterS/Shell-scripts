@@ -3,86 +3,144 @@
 ################################################################################
 # weather
 #
-# Get weather sensor data from USB receiver USB-WDE1
+# Get sensor data from USB receiver USB-WDE1
 #
-# WS 20120824
+# WS 20140119
 ################################################################################
 # Error count reset on good readings, faster awk, mail address as variable
 # WS20121115
 ####
-# Configurable update frquency (TDIFF)
+# Configurable update frequency (TDIFF)
 # WS 20130329
+####
+# Arrays! More reliable input checks, sensor errors return now names
+# WS 20130120
+####
 
+########### Configure here ###########
+# Sensor channels and names
+CHANNELS[1]="outdoors"
+CHANNELS[2]="study"
+CHANNELS[3]="sleeping room"
 
+# Mail address for error messages
 MAIL_ADD="nn@nn.nn"
+
+# Path to RRD and log file
 RRD=~/doc/weather/weather.rrd
 LOG=~/doc/weather/${0##*/}.errlog
-TDIFF=20	# Min. seconds between updates
-FIELDS=6	# No. of data fields
-WAIT=3
+
+######### Configuration end ##########
+
+TDIFF=20       # Min. seconds between updates
+FIELDS_TOTAL=25	# Total no. of data fields
+WAIT=10         # Send mail only on every n consecutive error
 ERRORCOUNT=0
 PLURAL=
 FIELDS_DIFF=
 PORT=
 DATE=0
 DATE_OLD=0
+declare -a FAILURES INPUT SENSORS DATA
+IFS=':'
 
-FIELDS=$((FIELDS+2))	# 2 header fields
 
 # Get USB port
-PORT=$(udevadm info --export-db 2>/dev/null|awk -F'=' '/^S:.*Silicon_Labs_ELV_USB/,/DEVPATH=/ {if (/DEVNAME=/) {print $NF;exit}}')
+PORT=$(dmesg | awk '/cp210x converter now attached to tty/ {port=$NF} END {print "/dev/"port}')
 if [[ ! $PORT =~ ^/dev/tty.*$ ]]; then
-	PORT=$(dmesg | awk '/cp210x converter now attached to tty/ {port=$NF} END {print "/dev/"port}')
+	PORT=$(udevadm info --export-db 2>/dev/null|awk -F'=' '/^S:.*Silicon_Labs_ELV_USB/,/DEVPATH=/ {if (/DEVNAME=/) {print $NF;exit}}')
 fi
 if [[ $PORT =~ ^/dev/$ ]]; then
 	PORT='/dev/ttyUSB0'
 	echo "Error: No suitable USB port found, trying $PORT" >&2
 fi
 
+# Send mail on errors
 send_mail_() {
-FIELDS_DIFF=$(($FIELDS-$FIELDS_CURR))
-if [[ $FIELDS_DIFF = 1 ]]; then
-	PLURAL=
-else
-	PLURAL=s
+echo "$(date -d @$DATE '+%Y-%m-%d %H:%M:%S'): Error: $ERROR #${ERRORCOUNT}" | tee -a $LOG
+if [[ $ERRORCOUNT -lt $WAIT && $ERRORCOUNT -gt 1 ]]; then
+	return
 fi
 
 mail -s "Error on temperature reading" $MAIL_ADD<<END
-$(date '+%d.%m.%Y, %H:%M')
+$(date -d @$DATE '+%Y-%m-%d %H:%M:%S')
 
-Temperature readout misses $FIELDS_DIFF field$PLURAL
+$ERROR
 END
 
-#ERRORCOUNT=0
-
+if [[ $? -ne 0 ]]; then
+	echo "$(date '+%Y-%m-%d %H:%M:%S'): Error: could not send error mail" | tee -a $LOG
+else
+	echo "$(date '+%Y-%m-%d %H:%M:%S'): Sent error mail" | tee -a $LOG
+fi
+ERROR=
 }
 
+CMD="socat ${PORT},b9600 STDOUT"
+
 # Connect to serial port
-socat ${PORT},b9600 STDOUT | \
-while read LINE; do
-	if [[ "$LINE" =~ ^'$1' ]]; then
-		# Send mail on error
-		FIELDS_CURR=$(awk -F\; 'BEGIN {n=0} {for (i=1;i<NF;i++) if ($i~/.+/) {n++}} END {print n}'<<<"$LINE")
-		if [[ $FIELDS_CURR != $FIELDS ]]; then
-			((ERRORCOUNT++))
-			echo "$(date '+%Y-%m-%d %H:%M:%S'): Deviating field count #$ERRORCOUNT"
-			if [[ $ERRORCOUNT = $WAIT ]]; then
-				send_mail_
-			fi
-		else
-			ERRORCOUNT=0
-		fi
-		DATE=$(date '+%s')
-		# Prevent multiple updates within TDIFF
-		[[ "$((DATE-DATE_OLD))" -le $TDIFF ]] && continue
+eval $CMD | \
+while IFS=';' read -a INPUT; do
+	DATE=$(date '+%s')
+	if [[ "$INPUT" != '$1' ]]; then
+		sleep 1
+		continue
+	fi
+	if [[ $[DATE - DATE_OLD] -lt $TDIFF ]]; then
+		continue
+	else
 		DATE_OLD=$DATE
-		# Format data for RRD
-		DATA="${DATE}$(tr ';,' ':.'<<<${LINE#?1;1;})"
-		DATA=$(sed 's/::/:U:/g;s/::/:U:/g;s/U:U:U:U:0/U:U:U:U/'<<<$DATA)
-		echo "$(date '+%Y-%m-%d %H:%M:%S'): $DATA"
-		# Write to RRD file
-		if ! rrdtool update $RRD $DATA 2>>$LOG; then
-			echo $DATA >> $LOG
+	fi
+	# Check total number of fields
+	if [[ ${#INPUT[@]} -ne $FIELDS_TOTAL ]]; then
+		ERROR="Got ${#INPUT[@]} fields instead of ${FIELDS_TOTAL}."
+		((ERRORCOUNT++))
+		send_mail_
+		continue
+	fi
+	# Cut first, second and last field
+	n=0
+	for n in $[${#INPUT[@]}-1] 0 1; do
+		unset INPUT[$n]
+	done
+	DATA=("${INPUT[@]}")
+	DATA[0]=$DATE
+	DATA=("${DATA[@]/,/.}")
+	# Check for missing sensor data
+	FAILURES=()
+	n=0
+	for n in ${!CHANNELS[*]}; do
+		if [[ -z "${DATA[$n]}" || -z "${DATA[$[n+8]]}" ]]; then
+			FAILURES[${#FAILURES[@]}]="${CHANNELS[$n]^}"
 		fi
+	done
+	if [[ ${#FAILURES[@]} -gt 0 ]]; then
+		if [[ ${#FAILURES[@]} -gt 1 ]]; then
+			PLURAL="s"
+		else
+			PLURAL=
+		fi
+		ERROR="Sensor failure in ${#FAILURES[@]} location${PLURAL}: $(sed 's/'"$IFS"'/, /g'<<<"${FAILURES[*]^}")."
+		((ERRORCOUNT++))
+		send_mail_
+	fi
+	# Replace unused fields with "U"
+	n=0
+	for VAR in ${DATA[@]}; do
+		[[ -z "$VAR" ]] && DATA[$n]="U"
+		((n++))
+	done
+	[[ "${DATA[-2]}" == "U" ]] && DATA[$[${#DATA[@]}-1]]="U"
+	echo "$(date -d @$DATE '+%Y-%m-%d %H:%M:%S'): ${DATA[*]}"
+	# Write to RRD file
+	if ! rrdtool update $RRD "${DATA[*]}" 2>>$LOG; then
+		echo "${DATA[*]}" >> $LOG
+		((ERRORCOUNT++))
+		ERROR="Could not update $RRD"
+		send_mail_
+		continue
 	fi
 done
+
+# EOF
+
