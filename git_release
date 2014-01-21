@@ -19,6 +19,9 @@
 # Added check at beginning if we are in the right branch, a check for the
 # version file, a merge check and added "-B" to $RELEASE branch checkout.
 # WS 20140115
+####
+# Removed merge check
+# WS 20140121
 
 
 ########### Configure here ###########
@@ -58,17 +61,6 @@ fi
 # Get tags
 if ! git fetch --tags; then
 	echo "Error: Could not fetch tags, please check." >&2
-	exit 1
-fi
-# Check merge
-if MSG=$(git merge --no-commit --no-ff $MASTER); then
-	if grep -q "Already up-to-date"<<<$MSG; then
-		echo "Nothing to merge"
-		git checkout $MASTER
-		exit
-	fi
-else
-	echo "Error: Merge test failed." >&2
 	exit 1
 fi
 # Merge $MASTER into $RELEASE
