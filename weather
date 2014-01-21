@@ -16,6 +16,8 @@
 # Arrays! More reliable input checks, sensor errors return now names
 # WS 20130120
 ####
+# Added error count reset
+# WS 20130329
 
 ########### Configure here ###########
 # Sensor channels and names
@@ -81,6 +83,7 @@ CMD="socat ${PORT},b9600 STDOUT"
 # Connect to serial port
 eval $CMD | \
 while IFS=';' read -a INPUT; do
+	ERROR_TMP=0
 	DATE=$(date '+%s')
 	if [[ "$INPUT" != '$1' ]]; then
 		sleep 1
@@ -95,6 +98,7 @@ while IFS=';' read -a INPUT; do
 	if [[ ${#INPUT[@]} -ne $FIELDS_TOTAL ]]; then
 		ERROR="Got ${#INPUT[@]} fields instead of ${FIELDS_TOTAL}."
 		((ERRORCOUNT++))
+		((ERROR_TMP++))
 		send_mail_
 		continue
 	fi
@@ -122,6 +126,7 @@ while IFS=';' read -a INPUT; do
 		fi
 		ERROR="Sensor failure in ${#FAILURES[@]} location${PLURAL}: $(sed 's/'"$IFS"'/, /g'<<<"${FAILURES[*]^}")."
 		((ERRORCOUNT++))
+		((ERROR_TMP++))
 		send_mail_
 	fi
 	# Replace unused fields with "U"
@@ -136,10 +141,12 @@ while IFS=';' read -a INPUT; do
 	if ! rrdtool update $RRD "${DATA[*]}" 2>>$LOG; then
 		echo "${DATA[*]}" >> $LOG
 		((ERRORCOUNT++))
+		((ERROR_TMP++))
 		ERROR="Could not update $RRD"
 		send_mail_
 		continue
 	fi
+	[[ $ERROR_TMP -eq 0 ]] && ERRORCOUNT=0
 done
 
 # EOF
