@@ -14,7 +14,7 @@ DATE_DMESG=$1
 DATE_BOOT=
 
 # Only accept integers and floating point numbers
-if ! egrep -q '^[0-9]+\.*[0-9]*$'<<<$DATE_DMESG; then
+if ! egrep -q '^[0-9]+(\.[0-9]+)*$'<<<$DATE_DMESG; then
 	DATE_DMESG=
 fi
 
@@ -25,13 +25,14 @@ if [[ -z "$DATE_DMESG" ]]; then
 		read DATE_DMESG
 		if ! egrep -q '^[0-9]+\.*[0-9]*'<<<$DATE_DMESG; then
 			DATE_DMESG=
-			echo "Please enter an integer:"
+			echo -n "Please enter a number: "
 		fi
 	done
 fi
 
 # Get last boot date
-if ! DATE_BOOT=$(date -d @$(($(date '+%s') - $(date -d @$(awk '{print $1}' /proc/uptime) '+%s'))) '+%s'); then
+DATE_DMESG=$(awk '{printf "%.0f", $1}'<<<$DATE_DMESG)
+if ! DATE_BOOT=$(date -d @$[$(date '+%s') - $(date -d @$(awk '{print $1}' /proc/uptime) '+%s')] '+%s'); then
 	exit 1
 fi
 if [[ -z "$DATE_BOOT" ]]; then
@@ -39,11 +40,8 @@ if [[ -z "$DATE_BOOT" ]]; then
 	exit 1
 fi
 
-# Add time string to boot date
-DATE_DMESG=$(awk -F\. '{print $1}'<<<$DATE_DMESG)
-
 # Print time string
-date -d @$(($DATE_BOOT+$DATE_DMESG))
+date -d @$[$DATE_BOOT+$DATE_DMESG]
 
 exit 0
 
