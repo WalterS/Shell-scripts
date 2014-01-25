@@ -1,0 +1,57 @@
+#!/bin/bash
+
+############################################################
+# check_update
+#
+# Check for OS updates on yum and apt based systems
+#
+# WS 20130125
+############################################################
+
+
+########### Configure here ###########
+
+# Mail address for notification
+MAIL_ADD="nn@nn.nn"
+# Status file
+LOG=/var/tmp/${0##*/}.log
+
+######### Configuration end ##########
+
+
+HOSTNAME=$(hostname -s)
+declare -a UPDATES
+
+# Send mail with list of updates
+send_mail_ (){
+if ! grep -qw "1:${#UPDATES[@]}" $LOG 2>/dev/null; then
+	mail -s "${#UPDATES[@]} updates available on $HOSTNAME" $MAIL_ADD<<EOH
+The following packages can be updated:
+$(for PKG in ${UPDATES[@]}; do echo $PKG;done)
+EOH
+	echo "1:${#UPDATES[@]}" >$LOG
+fi
+}
+
+# Get list of updates
+if which apt-get &>/dev/null; then
+	IFS=' ' UPDATES=($(apt-get -qs dist-upgrade 2>/dev/null | awk '/upgraded:$/,/upgraded\.$/ {gsub("\n","")} {if($0~/^[[:blank:]]/) {str=str" "$0}} END {print str}'))
+elif which yum &>/dev/null; then
+	IFS=$'\n' UPDATES=($(yum -q check-updates|awk '/^\S+/ {print $1}'))
+else
+	echo "Fatal: Could not find yum or apt-get, can't continue" >&2
+fi
+
+# Check status file
+if [[ ${#UPDATES[@]} -eq 0 ]]; then
+	if ! grep -qw "0:0" $LOG 2>/dev/null; then
+		echo "0:0" >$LOG
+	fi
+else
+	if ! grep -qw "1:${#UPDATES[@]}" $LOG; then
+		send_mail_
+	fi
+fi
+
+# EOF
+
