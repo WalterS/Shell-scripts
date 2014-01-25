@@ -18,6 +18,9 @@
 # Changed search string
 # WS 20120920
 ####
+# Added day/night graphic
+# WS 20130125
+####
 
 
 ########### Configure here ###########
@@ -28,11 +31,11 @@ dir=/home/walter/doc/weather
 name=satellite
 
 # Website to use for scraping
-site=http://www.yr.no/satellitt/1.5941755
+sites="http://www.yr.no/satellitt/europa.html http://www.yr.no/satellitt/europa_dag_natt.html"
 
 # Search strings for scraping
 # Make sure to escape all <>.?/ etc.
-search_str1='src="http:.*\/weatherapi\/geosatellite\/1\.3\/\?area=europe'
+search_str1='="http:.*\/weatherapi\/geosatellite\/1\.3\/\?area=europe'
 search_str2='width=650'
 
 # Which record (first=0)?
@@ -50,14 +53,18 @@ rc=0
 
 # Some basic tests
 if ! [[ -d $dir ]] &> /dev/null; then
-	if ! mkdir -p $dir; then
+	mkdir -p $dir
+	if ! [[ -d $dir ]] &> /dev/null; then
 		echo "Error: Directory $dir is not available" >&2
 		((rc++))
 		exit $rc
 	fi
 fi
 
-log=${dir}/${name}.log
+for site in $sites; do
+qualifier=$(awk -F'[./]' '{print $(NF-1)}'<<<$site)
+log=${dir}/${name}_${qualifier}.log
+name=${name}_${qualifier}
 
 if ! touch $log &> /dev/null; then
 	echo "Error: Log file $log is not accessible" >&2
@@ -106,7 +113,7 @@ fi
 }
 
 # Get URL
-location=$(wget -qO - $site | awk -F\" '(/'"$search_str1"'/ && /'"$search_str2"'/) && s=='"$occurrence"' {print $2; s++1}')
+location=$(wget -qO - $site | awk -F\" '(/'"$search_str1"'/ && /'"$search_str2"'/) && s=='"$occurrence"' {print $2; s++1}' 2>/dev/null)
 
 if [[ -z "$location" ]]; then
 	cat << END >> $log
@@ -119,13 +126,16 @@ END
 fi
 
 # Test whether picture has changed
-timestamp=$(echo $location | awk -F'=|;|' '{print $(NF-3)}')
+if ! timestamp=$(echo $location | awk -F'=|;|' '{print $(NF-3)}' 2>/dev/null); then
+	timestamp_=$timestamp
+	timestamp=
+fi
 
-if [ "$timestamp" == "" ]; then
+if [[ -z "$timestamp" ]]; then
 	cat << END >> $log
 $(header)
 
-Error: Could not extract timestamp from URL for comparison
+Error: Could not extract timestamp from URL for comparison ($timestamp_)
 END
 	((rc++))
 	exit 1
@@ -133,7 +143,7 @@ fi
 
 # Download only if picture has changed and when there is no error in log file
 if grep -q $timestamp $log &> /dev/null; then
-	if egrep -qE 'Error|failed' $log &> /dev/null; then
+	if egrep -q 'Error|failed' $log &>/dev/null; then
 		getimage
 	else
 		if [[ $debug = 1 ]]; then
@@ -147,6 +157,7 @@ END
 else
 	getimage
 fi
+done
 
 exit 0
 
