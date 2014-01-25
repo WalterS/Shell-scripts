@@ -22,6 +22,12 @@ LOG=/var/tmp/${0##*/}.log
 HOSTNAME=$(hostname -s)
 declare -a UPDATES
 
+# Check for root rights
+if [[ "$(id -u)" != 0 ]]; then
+	echo "Error: This script must be run as root" >&2
+	exit 1
+fi
+
 # Send mail with list of updates
 send_mail_ (){
 if ! grep -qw "1:${#UPDATES[@]}" $LOG 2>/dev/null; then
@@ -40,6 +46,7 @@ elif which yum &>/dev/null; then
 	IFS=$'\n' UPDATES=($(yum -q check-updates|awk '/^\S+/ {print $1}'))
 else
 	echo "Fatal: Could not find yum or apt-get, can't continue" >&2
+	exit 1
 fi
 
 # Check status file
