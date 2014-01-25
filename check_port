@@ -3,7 +3,7 @@
 ################################################################################
 # check_port
 # 
-# Checks if a given TCP/UDP port is open
+# Checks if a given TCP/UDP port is open using Bash sockets
 #
 # WS 20110823
 ################################################################################
