@@ -41,7 +41,7 @@ if [[ -z "$DATE_BOOT" ]]; then
 fi
 
 # Print time string
-date -d @$[$DATE_BOOT+$DATE_DMESG]
+date -d @$[DATE_BOOT + DATE_DMESG]
 
 exit 0
 
