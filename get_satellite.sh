@@ -61,20 +61,6 @@ if ! [[ -d $dir ]] &> /dev/null; then
 	fi
 fi
 
-for site in $sites; do
-qualifier=$(awk -F'[./]' '{print $(NF-1)}'<<<$site)
-log=${dir}/${name}_${qualifier}.log
-name=${name}_${qualifier}
-
-if ! touch $log &> /dev/null; then
-	echo "Error: Log file $log is not accessible" >&2
-	((rc++))
-	exit $rc
-fi
-
-############################################################
-#### Here we go
-
 # Header for log file
 header () {
 cat << END
@@ -112,51 +98,64 @@ fi
 
 }
 
-# Get URL
-location=$(wget -qO - $site | awk -F\" '(/'"$search_str1"'/ && /'"$search_str2"'/) && s=='"$occurrence"' {print $2; s++1}' 2>/dev/null)
+############################################################
+#### Here we go
+for site in $sites; do
+	qualifier=$(awk -F'[./]' '{print $(NF-1)}'<<<$site)
+	log=${dir}/${name}_${qualifier}.log
+	name=${name}_${qualifier}
 
-if [[ -z "$location" ]]; then
-	cat << END >> $log
+	if ! touch $log &> /dev/null; then
+		echo "Error: Log file $log is not accessible" >&2
+		((rc++))
+		exit $rc
+	fi
+
+	# Get URL
+	location=$(wget -qO - $site | awk -F\" '(/'"$search_str1"'/ && /'"$search_str2"'/) && s=='"$occurrence"' {print $2; s++1}' 2>/dev/null)
+
+	if [[ -z "$location" ]]; then
+		cat << END >> $log
 $(header)
 
 Error: Could not get URL for satellite image
 END
-	((rc++))
-	exit 1
-fi
+		((rc++))
+		exit 1
+	fi
 
-# Test whether picture has changed
-if ! timestamp=$(echo $location | awk -F'=|;|' '{print $(NF-3)}' 2>/dev/null); then
-	timestamp_=$timestamp
-	timestamp=
-fi
+	# Test whether picture has changed
+	if ! timestamp=$(echo $location | awk -F'=|;|' '{print $(NF-3)}' 2>/dev/null); then
+		timestamp_=$timestamp
+		timestamp=
+	fi
 
-if [[ -z "$timestamp" ]]; then
-	cat << END >> $log
+	if [[ -z "$timestamp" ]]; then
+		cat << END >> $log
 $(header)
 
 Error: Could not extract timestamp from URL for comparison ($timestamp_)
 END
-	((rc++))
-	exit 1
-fi
+		((rc++))
+		exit 1
+	fi
 
-# Download only if picture has changed and when there is no error in log file
-if grep -q $timestamp $log &> /dev/null; then
-	if egrep -q 'Error|failed' $log &>/dev/null; then
-		getimage
-	else
-		if [[ $debug = 1 ]]; then
-		cat << END >> $log
+	# Download only if picture has changed and when there is no error in log file
+	if grep -q $timestamp $log &> /dev/null; then
+		if egrep -q 'Error|failed' $log &>/dev/null; then
+			getimage
+		else
+			if [[ $debug = 1 ]]; then
+				cat << END >> $log
 $(header)
 
 DEBUG: Link to image has not changed ($timestamp)
 END
+			fi
 		fi
+	else
+		getimage
 	fi
-else
-	getimage
-fi
 done
 
 exit 0
