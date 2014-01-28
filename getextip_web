@@ -32,7 +32,7 @@ IP_TEST=
 
 # Look for awk
 if AWK=$(which awk 2>/dev/null); then
-	# If we have the GNU version, we need --reinterval
+	# Testing for the GNU version as we need --reinterval
 	if $AWK --version 2>/dev/null | grep -q GNU; then
 		AWK="$AWK --re-interval"
 	fi 
@@ -57,12 +57,9 @@ fi
 # Get IP address
 if IP_ADDRESS=$($GET http://showip.net/ 2>/dev/null); then
 	# Extract IP address from HTML
-	IP_ADDRESS=$(awk -F\" '/check_ip/ && /value=/ {print $(NF-1)}'<<<"$IP_ADDRESS")
+	IP_ADDRESS=$(awk -F\" '/check_ip/ && /value=/ {print $(NF-1);exit}'<<<"$IP_ADDRESS")
 else
-	if IP_ADDRESS=$($GET http://www.whatismyip.org/automation/n09230945.asp 2>/dev/null); then
-		# Extract IP address from HTML
-		IP_ADDRESS=$(awk -F'<|: +' '{print $(NF-2)}'<<<"$IP_ADDRESS")
-	else
+	if ! IP_ADDRESS=$($GET http://bot.whatismyipaddress.com 2>/dev/null); then
 		echo "Error: No external website is reachable, unable to obtain external IP address" >&2
 		exit 1
 	fi
