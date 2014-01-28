@@ -62,7 +62,6 @@ Suspending machine after $COUNTER wait cycles ($EXEC_TIME minutes).
 END
 
 # Suspend machine
-netio_wd off &
 /usr/lib/systemd/systemd-sleep suspend &
 
 # EOF
