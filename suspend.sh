@@ -1,10 +1,10 @@
 #!/bin/bash
 
 ############################################################
-# suspend
+# suspend.sh
 #
-# Suspend machine only if $process is not running
-# Checks every $wait_time minutes/seconds
+# Suspend machine only if $PROCESS is not running
+# Checks every $WAIT_TIME minutes/seconds
 #
 # WS 20091211
 ############################################################
@@ -16,51 +16,53 @@
 # WS 20110411
 ####
 
-process=BackupPC_dump
-wait_time=5m
-log=/tmp/${0##*/}.log
+PROCESS=BackupPC_dump
+WAIT_TIME=5m
+LOG=/tmp/${0##*/}.log
 
-start_time=$(date '+%s')
-counter=0
-end_time=0
-exec_time=0
-is_running=1
-prc=
+START_TIME=$(date '+%s')
+COUNTER=0
+END_TIME=0
+EXEC_TIME=0
+IS_RUNNING=0
+PRC=
 
 
 # Check if log file is accessible
-if ! touch $log > /dev/null 2>&1; then
-	echo "Could not access log file $log" >&2
+if ! touch $LOG > /dev/null 2>&1; then
+	echo "Could not access log file $LOG" >&2
 	exit 1
 fi
 
 # Check periodically if process is running
-while [[ $is_running = 1 ]]; do
-	prc=$(/usr/local/bin/psgrep $process | awk '!/BackupPC -d/ && ! /BackupPC_trashClean/')
-	if [[ -z "$prc" ]]; then
-		is_running=0
+PROCESS=$(sed 's/[[:alnum:]]/[&]/'<<<$PROCESS)
+while [[ $IS_RUNNING = 0 ]]; do
+	PRC=$(ps -ef | awk '/'$PROCESS'/ && (!/BackupPC -d/ && ! /BackupPC_trashClean/)')
+	if [[ -z "$PRC" ]]; then
+		IS_RUNNING=1
 	else
-		((counter++))
-		sleep $wait_time
+		((COUNTER++))
+		sleep $WAIT_TIME
 	fi
 done
 
 # Compute run time
-end_time=$(date '+%s')
+END_TIME=$(date '+%s')
 
-if [[ $counter -gt 0 ]]; then
-	exec_time=$(($(($end_time-$start_time))/60))
+if [[ $COUNTER -gt 0 ]]; then
+	EXEC_TIME=$[$[END_TIME - START_TIME]/60]
 fi
 
 # Write log file
-cat << END >> $log
+cat << END >> $LOG
 _____________________________________________________________________________________
-`date '+%Y%m%d %H:%M'`
-Suspending machine after $counter wait cycles ($exec_time minutes).
+$(date '+%Y%m%d %H:%M')
+Suspending machine after $COUNTER wait cycles ($EXEC_TIME minutes).
 
 END
 
 # Suspend machine
-/usr/sbin/pm-suspend &
+netio_wd off &
+/usr/lib/systemd/systemd-sleep suspend &
 
 # EOF
