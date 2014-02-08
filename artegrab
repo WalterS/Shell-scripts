@@ -1,0 +1,90 @@
+#!/bin/bash
+
+################################################################################
+# Arte+7 HD link grabber
+#
+# Tries to get all HD streaming links from Arte+7 and prints them as
+# rtmpdump command line.
+# Expected input: Arte+7 web page of a video.
+#
+# WS 20140208
+################################################################################
+
+declare -a LINKS
+
+usage()
+{
+local MY_NAME=${0##*/}
+
+cat << EOF
+
+$MY_NAME gets all HD streaming links from Arte+7
+
+Usage:
+  $MY_NAME <Arte+7_URL>
+
+Example:
+  $MY_NAME "http://www.arte.tv/guide/de/048911-002/secret-state-2-4"
+
+EOF
+}
+
+# Check input
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+	usage
+	exit 0
+fi
+
+if [[ $# -ne 1 ]]; then
+	echo "Error: Wrong number of arguments" >&2
+	usage >&2
+	exit 1
+fi
+
+if ! grep -q 'arte.tv/'<<<$1; then
+	echo "Error: Need Arte+7 URL as input" >&2
+	usage >&2
+	exit 1
+fi
+
+# Create JSON URLs
+JSON=$(curl -s "$1"|awk -F'\"' '/ALL.json/ {print $(NF-1);exit}')
+if grep -q '/D/' <<<$JSON; then
+	JSON_FR=$(sed 's#D/#F/#g'<<<$JSON)
+	JSON_DE=$JSON
+else
+	JSON_FR=$JSON
+	JSON_DE=$(sed 's#F/#D/#g'<<<$JSON)
+fi
+
+if [[ -z "$JSON_DE" || -z "$JSON_FR" ]]; then
+	echo "Error: no link sources found, either this is the wrong URL or it is older than 7 days" >&2
+	exit 1
+fi
+
+JSON=
+
+# Extract HD rtmp links from JSON
+for JSON in "$JSON_DE" "$JSON_FR"; do
+	for LINK in $(curl -s "$JSON" | awk -F'\"' 'BEGIN {RS="{|}"} /720p.*rtmp/ && !/:"(FR|DE|UTH)",/ {print $22"§"$26"§"$(NF-5)}'); do
+		LINKS[${#LINKS[@]}]="$LINK"
+	done
+done
+
+if [[ ${#LINKS[@]} -eq 0 ]]; then
+	echo "No HD links found"
+	exit 0
+fi
+
+# Print links as rtmpdump command line
+echo "Found ${#LINKS[@]} links:"
+for i in $(eval echo "{0..$[${#LINKS[@]}-1]}"); do
+	TMP=()
+	IFS='§' TMP=(${LINKS[$i]})
+	echo -e "${TMP[-1]}:\nrtmpdump -r \"${TMP[0]}\" -y \"mp4:${TMP[1]}\""
+done
+
+exit 0
+
+# EOF
+
