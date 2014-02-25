@@ -44,7 +44,7 @@ if which apt-get &>/dev/null; then
 	apt-get update &>/dev/null
 	IFS=' ' UPDATES=($(apt-get -qs dist-upgrade 2>/dev/null | awk '/upgraded:$/,/upgraded\.$/ {gsub("\n","")} {if($0~/^[[:blank:]]/) {str=str" "$0}} END {print str}'))
 elif which yum &>/dev/null; then
-	IFS=$'\n' UPDATES=($(yum -q check-updates|awk '/^\S+/ {print $1}'))
+	IFS=$'\n' UPDATES=($(yum -q check-updates|awk '/^\S+/ && !/Security:/ {print $1}'))
 else
 	echo "Fatal: Could not find yum or apt-get, can't continue" >&2
 	exit 1
