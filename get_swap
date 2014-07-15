@@ -17,19 +17,19 @@ usage (){
 cat <<END
 Usage:      $MY_NAME prints all process which are using swap space
 Parameters: --sort=[pid|name|size]
-                   Sort process list according to process ID, name or size
+                 Sort process list according to process ID, name or size
             -n|--no-summary
-                   Don't print a summary
+                 Don't print a summary
             -h|--help
-                   Print this help text
+                 Print this help text
 END
 }
-# Check input
 
 # Get command line options
 OPTIONS_LONG="help,no-summary,sort:"
 OPTIONS_SHORT="hn"
 
+# Check input
 if ! PARSED_OPTIONS=$(getopt -qn "$0" -o "$OPTIONS_SHORT" -l "$OPTIONS_LONG" -- "$@"); then
 	echo "Error: Invalid option"
 	usage >&2
@@ -46,7 +46,7 @@ OPTERR=0
 eval set -- "$PARSED_OPTIONS"
 
 while [[ $# -ge 1 ]]; do
-        case $1 in
+	case $1 in
 		-h|--help)
 			usage
 			exit 0 ;;
@@ -60,8 +60,8 @@ while [[ $# -ge 1 ]]; do
 			echo "Error: Wrong parameter $1" >&2
 			usage >&2
 			exit 2 ;;
-        esac
-        shift
+	esac
+	shift
 done
 
 for DIR in $(find /proc/ -maxdepth 1 -type d -regex "^/proc/[0-9]+"); do
@@ -76,6 +76,7 @@ for DIR in $(find /proc/ -maxdepth 1 -type d -regex "^/proc/[0-9]+"); do
 	TOTAL=$((TOTAL+SUM))
 	SUM=0
 done
+
 echo -e $LIST|sort -nk3
 [[ $SUMMARY = 1 ]] &&  echo "Total swap used: $TOTAL kB"
 
