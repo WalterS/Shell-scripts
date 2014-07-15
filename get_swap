@@ -1,0 +1,84 @@
+#!/bin/bash
+
+############################################################
+# get_swap
+# Get current swap usage for all running processes
+#
+# WS 20130917
+############################################################
+
+MY_NAME=${0##*/}
+SUM=0
+TOTAL=0
+SUMMARY=1
+SORT=
+
+usage (){
+cat <<END
+Usage:      $MY_NAME prints all process which are using swap space
+Parameters: --sort=[pid|name|size]
+                   Sort process list according to process ID, name or size
+            -n|--no-summary
+                   Don't print a summary
+            -h|--help
+                   Print this help text
+END
+}
+# Check input
+
+# Get command line options
+OPTIONS_LONG="help,no-summary,sort:"
+OPTIONS_SHORT="hn"
+
+if ! PARSED_OPTIONS=$(getopt -qn "$0" -o "$OPTIONS_SHORT" -l "$OPTIONS_LONG" -- "$@"); then
+	echo "Error: Invalid option"
+	usage >&2
+	exit 2
+fi
+
+# Make sure we're run by root
+if [[ "$(id -u)" != "0" ]]; then
+	echo "This script must be run as root" >&2
+	exit 1
+fi
+
+OPTERR=0
+eval set -- "$PARSED_OPTIONS"
+
+while [[ $# -ge 1 ]]; do
+        case $1 in
+		-h|--help)
+			usage
+			exit 0 ;;
+		-n|--no-summary)
+			SUMMARY=0 ;;
+		-s|--sort)
+			SORT="$2"; shift ;;
+		--)
+			break ;;
+		*)
+			echo "Error: Wrong parameter $1" >&2
+			usage >&2
+			exit 2 ;;
+        esac
+        shift
+done
+
+for DIR in $(find /proc/ -maxdepth 1 -type d -regex "^/proc/[0-9]+"); do
+	PID=${DIR##*/}
+	PROGNAME=$(ps -p $PID -o comm --no-headers)
+	for SWAP in $(awk '/Swap/ {print $2}' $DIR/smaps 2>/dev/null); do
+		SUM=$((SUM+SWAP))
+	done
+	if (( $SUM > 0 )); then
+		LIST="$LIST\nPID=$PID swapped $SUM kB ($PROGNAME)"
+	fi
+	TOTAL=$((TOTAL+SUM))
+	SUM=0
+done
+echo -e $LIST|sort -nk3
+[[ $SUMMARY = 1 ]] &&  echo "Total swap used: $TOTAL kB"
+
+
+# EOF
+
