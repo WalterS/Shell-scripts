@@ -1,0 +1,31 @@
+#!/bin/bash
+
+################################################################################
+# dmesg_abs
+#
+# Print dmesg with absolute timestamps
+# Times can differ on subsequent runs because of round-off errors
+#
+# WS 20140715
+################################################################################
+
+IFS=$'\n'
+
+# Get last boot date
+if ! DATE_BOOT=$(date -d @$[$(date '+%s') - $(date -d @$(awk '{print $1}' /proc/uptime) '+%s')] '+%s'); then
+	exit 1
+fi
+if [[ -z "$DATE_BOOT" ]]; then
+	echo "Error: Could not get last boot date" >&2
+	exit 1
+fi
+
+for LINE in $(dmesg); do
+	DATE_DMESG=$(awk -F"[][]" '{printf"%.0f", $2}'<<<$LINE)
+	DATE_DMESG=$(date --rfc-3339=seconds -d @$[$DATE_BOOT + $DATE_DMESG])
+	sed 's/^\[[0-9]*\.[0-9]*\]/['"$DATE_DMESG"']/g'<<<$LINE
+done
+
+exit 0
+
+# EOF
