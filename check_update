@@ -3,7 +3,8 @@
 ############################################################
 # check_update
 #
-# Check for OS updates on yum and apt based systems
+# Check for OS updates on yum and apt based systems and
+# send a mail on new updates
 #
 # WS 20130125
 ############################################################
@@ -44,7 +45,7 @@ if which apt-get &>/dev/null; then
 	apt-get update &>/dev/null
 	IFS=' ' UPDATES=($(apt-get -qs dist-upgrade 2>/dev/null | awk '/upgraded:$/,/upgraded\.$/ {gsub("\n","")} {if($0~/^[[:blank:]]/) {str=str" "$0}} END {print str}'))
 elif which yum &>/dev/null; then
-	IFS=$'\n' UPDATES=($(yum -q check-updates|awk '/^\S+/ && !/Security:/ {print $1}'))
+	IFS=$'\n' UPDATES=($(yum -q --setopt=timeout=5 --setopt=retries=2 check-updates 2> /dev/null|awk '/^[[:alpha:]]/ && !/Security:|Could |Error/ {print $1}'))
 else
 	echo "Fatal: Could not find yum or apt-get, can't continue" >&2
 	exit 1
