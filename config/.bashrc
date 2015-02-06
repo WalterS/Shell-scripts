@@ -50,7 +50,7 @@ fi
 # Remove duplicates from path
 path_condense () {
 	PATH=$(sed 's#~#'$(echo ~)'#g'<<<$PATH)
-	export PATH=$(awk -F: '{for(i=1;i<=NF;i++) if(!($i in arr)){arr[$i];printf s$i;s=":"}} END {print ""}'<<<$PATH)
+	export PATH=$(awk -F: '{for(i=1;i<=NF;i++) if(!($i in arr)){arr[$i];printf s$i;s=":"}}'<<<$PATH)
 }
 
 # Function for process list search
