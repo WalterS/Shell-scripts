@@ -49,8 +49,24 @@ fi
 
 # Remove duplicates from path
 path_condense () {
-	PATH=$(sed 's#~#'$(echo ~)'#g'<<<$PATH)
-	export PATH=$(awk -F: '{for(i=1;i<=NF;i++) if(!($i in arr)){arr[$i];printf s$i;s=":"}}'<<<$PATH)
+	local PATH=$(sed 's#~#'$(echo ~)'#g'<<<$PATH) IFS=: MY_PATH PATH_PART
+	# Pure Bash version, needs version >= 4 for associative arrays
+	# This is faster and safer than the awk version
+	if [[ ${BASH_VERSINFO[0]} -ge 4 ]]; then
+		local -A PATH_ARR
+		for PATH_PART in $PATH; do
+			if [[ -z "${PATH_ARR[$PATH_PART]}" ]]; then
+				MY_PATH="${MY_PATH}:$PATH_PART"
+				PATH_ARR[$PATH_PART]=1
+			fi
+		done
+		[[ "$MY_PATH" =~ ^: ]] && MY_PATH=${MY_PATH#*:}
+		[[ -n "$MY_PATH" ]] && export PATH=$MY_PATH
+	else
+		if awk --version 2>/dev/null | grep -q GNU; then
+			export PATH=$(awk -F: '{for(i=1;i<=NF;i++) if(!($i in arr)){arr[$i];printf s$i;s=":"}}'<<<$PATH)
+		fi
+	fi
 }
 
 # Function for process list search
@@ -70,7 +86,7 @@ h () {
 	# You can use "^", "$" and other regular expressions now.
 
 	local STR="$*"
-	local STR=$(sed 's/\//\\\\\//g; s/\!/\\\!/g; s/\?/\\\?/g'<<<$STR)
+	STR=$(sed 's/\//\\\\\//g; s/\!/\\\!/g; s/\?/\\\?/g'<<<$STR)
 
 	# If no search expression given, just print the whole history
 	if [[ -z "$STR" ]]; then
@@ -86,8 +102,7 @@ h () {
 
 # Function for pulling Git repository
 git_current() {
-	local LPWD
-	LPWD=${PWD##*/}
+	local LPWD=${PWD##*/}
 	if ! grep -q 'remote "'$LPWD'"' ~/.gitconfig; then
 		echo "$LPWD is not defined in ~/.gitconfig" >&2
 		return 1
