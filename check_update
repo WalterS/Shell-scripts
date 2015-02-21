@@ -34,7 +34,7 @@ send_mail_ (){
 if ! grep -qw "1:${#UPDATES[@]}" $LOG 2>/dev/null; then
 	mail -s "${#UPDATES[@]} updates available on $HOSTNAME" $MAIL_ADD<<EOH
 The following packages can be updated:
-$(for PKG in ${UPDATES[@]}; do echo $PKG;done)
+$(IFS=$'\n'; echo "${UPDATES[*]}")
 EOH
 	echo "1:${#UPDATES[@]}" >$LOG
 fi
