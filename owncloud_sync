@@ -67,6 +67,9 @@ parse_config() {
 [[ "$OC_DEBUG" -eq 1 ]] && echo "Running function $FUNCNAME" >&2
 local IFS=$'\n'
 for LINE in $(awk '/^[[:blank:]]*--[a-z]/{a=$1;$1="";a=a":"$0;gsub(/:[[:blank:]]+/,":",a);print a}' $OC_CONFIGURATION); do
+	if [[ "$LINE" =~ ^--(trust|netrc|debug):$ ]]; then
+		LINE="${LINE}1"
+	fi
 	if [[ -n "${LINE#*:}" ]]; then
 		VAR=${LINE%%:*}
 		VAR=${VAR##*-}
