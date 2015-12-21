@@ -7,21 +7,6 @@
 #
 # WS 20091103
 ############################################################
-########## Changes ##########
-####
-# Cosmetic changes
-# WS 20110407
-####
-# Added trap
-# WS 20110604
-####
-# Changed search string
-# WS 20120920
-####
-# Added day/night graphic
-# WS 20130125
-####
-
 
 ########### Configure here ###########
 # Where to store the image
@@ -30,12 +15,12 @@ dir=/home/walter/doc/weather
 # ${dir}/${name}.log
 name=satellite
 
-# Website to use for scraping
+# Website(s) to use for scraping
 sites="http://www.yr.no/satellitt/europa.html http://www.yr.no/satellitt/europa_dag_natt.html"
 
 # Search strings for scraping
 # Make sure to escape all <>.?/ etc.
-search_str1='="http:.*\/weatherapi\/geosatellite\/1\.3\/\?area=europe'
+search_str1='="http:.*\/weatherapi\/geosatellite\/1\.3\?area=europe'
 search_str2='width=650'
 
 # Which record (first=0)?
@@ -95,11 +80,8 @@ fi
 if [[ $? = 0 && -s ${dir}/${name}1.jpg ]]; then
 	mv -f ${dir}/${name}1.jpg ${dir}/${name}.jpg &>/dev/null
 fi
-
 }
 
-############################################################
-#### Here we go
 for site in $sites; do
 	qualifier=$(awk -F'[./]' '{print $(NF-1)}'<<<$site)
 	log=${dir}/${name}_${qualifier}.log
@@ -110,6 +92,9 @@ for site in $sites; do
 		((rc++))
 		exit $rc
 	fi
+
+	############################################################
+	#### Here we go
 
 	# Get URL
 	location=$(wget -qO - $site | awk -F\" '(/'"$search_str1"'/ && /'"$search_str2"'/) && s=='"$occurrence"' {print $2; s++1}' 2>/dev/null)
@@ -125,7 +110,7 @@ END
 	fi
 
 	# Test whether picture has changed
-	if ! timestamp=$(echo $location | awk -F'=|;|' '{print $(NF-3)}' 2>/dev/null); then
+	if ! timestamp=$(awk -F'=|;|' '{print $(NF-2)}' <<<$location 2>/dev/null); then
 		timestamp_=$timestamp
 		timestamp=
 	fi
