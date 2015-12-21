@@ -25,9 +25,10 @@ editor=vim
 shebang_pl='#!/usr/bin/perl -w'
 shebang_sh='#!/bin/sh'
 shebang_bash='#!/bin/bash'
+shebang_rb='#!/bin/env ruby'
 
 # Default shebang
-shebang=$shebang_sh
+shebang=$shebang_bash
 ######### Configuration end ##########
 
 filename=
@@ -37,10 +38,10 @@ usage () {
 
 cat << END >&2
 
-Usage:   ${0##*/} <name_of_file> [bash|sh|[perl|pl]]
+Usage:   ${0##*/} <name_of_file> [bash|sh|[perl|pl]|[ruby|rb]]
 Example: ${0##*/} ~/bin/blafasel.sh bash
 
-If only a file name is given, the file type will be sh
+If only a file name is given, the file type will be bash
 
 END
 }
@@ -60,6 +61,8 @@ case $filetype in
 		shebang=$shebang_sh ;;
 	perl|pl)
 		shebang=$shebang_pl ;;
+	ruby|rb)
+		shebang=$shebang_rb ;;
 	"")
 		;;
 	*)
