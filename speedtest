@@ -1,0 +1,215 @@
+#!/bin/bash
+
+############################################################
+# speedtest
+#
+# Test network speed with wget
+#
+# WS 20151229
+############################################################
+
+# Defaults
+FALLBACK_SITE=google.com
+ITERATIONS_DEFAULT=3
+WGET_PARAMS="--ignore-length --no-check-certificate --no-cache -O /dev/null"
+
+# Check sanity
+if [[ "${BASH_VERSION%%.*}" -lt 4 || -z "$BASH_VERSION" ]]; then
+	echo "Error: We need Bash version 4 or higher, can't continue" >&2
+	exit 1
+fi
+for PRG in wget awk; do
+	if ! which $PRG &>/dev/null; then
+		echo "Error: Could not find ${PRG}, can't continue" >&2
+		exit 1
+	fi
+done
+
+MY_NAME=${0##*/}
+
+# Units lookup table: associative array
+declare -A MAG
+MAG[n]=0
+MAG[k]=1
+MAG[K]=1
+MAG[m]=2
+MAG[M]=2
+MAG[g]=3
+MAG[G]=3
+
+# Print help text
+usage (){
+cat <<END
+Usage: $MY_NAME downloads a website and measures mean speed over given iterations
+
+Parameters: -s|--site
+                   URL (default: $FALLBACK_SITE)
+            -r|--repeats
+                   How often to test for mean speed (default: $ITERATIONS_DEFAULT)
+            -u|--unit [n|k|m|g]
+                   Unit ([none|ki|Mi|Gi])
+            -b|--bytes
+                   Use bytes/second instead of bits/second
+            -q|--quiet
+                   Print result only
+            -h|--help
+                   Print this help text
+
+END
+}
+
+# Check input
+OPTIONS_LONG="site:,repeats:,unit:,bytes,quiet,help"
+OPTIONS_SHORT="s:,r:,u:,b,q,h"
+if ! PARSED_OPTIONS=$(getopt -qn "$0" -o "$OPTIONS_SHORT" -l "$OPTIONS_LONG" -- "$@"); then
+	echo "Error: Invalid option" >&2
+	usage >&2
+	exit 2
+fi
+OPTERR=0
+eval set -- "$PARSED_OPTIONS"
+
+unset REMOTE ITERATIONS UNIT BYTES QUIET
+while [[ $# -ge 1 ]]; do
+	case $1 in
+		-h|--help)
+			usage
+			exit 0 ;;
+		-s|--site)
+			if [[ -n "$2" ]]; then
+				REMOTE=$2
+			else
+				echo "Error for -a, using default" >&2
+			fi
+			shift ;;
+		-r|--repeats)
+			i=$2
+			# Check for integer
+			if (( i / i )) &>/dev/null; then
+				ITERATIONS=$[i/1]
+			else
+				echo "Error for -r (\"$2\"), using default" >&2
+			fi
+			unset i
+			shift ;;
+		-u|--unit)
+			i=$2
+			i=${i,,}
+			if [[ "$i" =~ ^(n|k|m|g)$ ]]; then
+				UNIT=$i
+			else
+				echo "Error for -u, using automatic unit" >&2
+			fi
+			unset i
+			shift ;;
+		-b|--b.tes)
+			BYTES=1 ;;
+		-q|--quiet)
+			QUIET=1 ;;
+		--)
+			break ;;
+		*)
+			echo "Error: Wrong parameter $1" >&2
+			usage >&2
+			exit 2 ;;
+	esac
+	shift
+done
+
+# Defaults to empty variables
+REMOTE=${REMOTE:-$FALLBACK_SITE}
+ITERATIONS=${ITERATIONS:-$ITERATIONS_DEFAULT}
+
+# Bits or bytes?
+if [[ ! $BYTES ]]; then
+	WGET_PARAMS+=' --report-speed=bits'
+	BYTES=b
+else
+	BYTES=B
+fi
+
+[[ -z "$QUIET" ]] && echo "Testing speed to $REMOTE over $ITERATIONS iterations"
+
+# Checking connectivity
+if ! wget $WGET_PARAMS -t 3 -T 1 -q "$REMOTE"; then
+	if [[ $REMOTE == google.com ]]; then
+		echo "Error: Network unreachable" >&2
+		exit 1
+	else
+		echo "Could not get \"$REMOTE\", trying google.com instead" >&2
+		if wget $WGET_PARAMS -t 3 -T 1 -q "$FALLBACK_SITE"; then
+			REMOTE=$FALLBACK_SITE
+		else
+			echo "Error: Network unreachable" >&2
+			exit 1
+		fi
+	fi
+fi
+
+# Speed test loop
+set -o pipefail
+for (( COUNTER=1; COUNTER <= $ITERATIONS; COUNTER++)); do
+	SPEED=${SPEED:-0}
+	if ! SPEED_CURRENT=$(wget $WGET_PARAMS -v $REMOTE 2>&1|awk -F'[)|(]' '/saved/ {print $2}'); then
+		echo "Error while downloading $REMOTE, are the wget options ($WGET_PARAMS -v) correct?" >&2
+		exit 1
+	fi
+	[[ -z "$SPEED_CURRENT" ]] && continue
+	SPEED_NUM=${SPEED_CURRENT%% *}
+	SPEED_DIM=${SPEED_CURRENT##* }
+	SPEED_DIM=${SPEED_DIM:0:1}
+	SPEED_DIM=${SPEED_DIM,,}
+	if [[ -z "$SPEED_NUM" || -z "$SPEED_DIM" ]]; then
+		echo "Oops, something went wrong. Received string: \"$SPEED_CURRENT\"" >&2
+		exit 1
+	fi
+	E=${MAG[$SPEED_DIM]}
+	E=${E:-0}
+	SPEED=$(bc -l<<<"scale=6;($SPEED_NUM*1024^$E)+$SPEED")
+done
+
+if [[ ${SPEED%%.*} -le 0 ]]; then
+	echo "Error in speed computation: \"$SPEED\"" >&2
+	exit 1
+fi
+
+# Compute raw mean speed
+SPEED=$(bc -l<<<"scale=4;${SPEED}/${ITERATIONS}")
+
+# Set unit for output
+if [[ $UNIT ]]; then
+	case ${UNIT,,} in
+		g|m)
+			UNIT=${UNIT^^} ;;
+		k)
+			UNIT=${UNIT,,} ;;
+		*)
+			UNIT=n ;;
+	esac
+fi
+
+if [[ ! $UNIT ]]; then
+	if (( $[${SPEED%%.*}/1024/1024/1024] > 0 )); then
+		UNIT=G
+	elif (( $[${SPEED%%.*}/1024/1024] > 0 )); then
+		UNIT=M
+	elif (( $[${SPEED%%.*}/1024] > 0 )); then
+		UNIT=k
+	else
+		UNIT=n
+	fi
+fi
+
+E=${MAG[$UNIT]}
+E=${E:-0}
+[[ "$UNIT" == n ]] && unset UNIT
+
+SPEED=$(bc -l<<<"scale=2;$SPEED/1024^$E")
+
+if [[ -z "$QUIET" ]]; then
+	echo "Mean speed: $SPEED ${UNIT}${BYTES}/s"
+else
+	echo "$SPEED ${UNIT}${BYTES}/s"
+fi
+
+# EOF
