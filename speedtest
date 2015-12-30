@@ -47,7 +47,7 @@ MAG[G]=3
 # Print help text
 usage (){
 cat <<END
-Usage: $MY_NAME downloads a website and measures mean speed over given iterations
+$MY_NAME downloads a website and measures mean speed over given iterations
 
 Parameters: -s|--site
                    URL (default: $FALLBACK_SITE)
@@ -57,17 +57,22 @@ Parameters: -s|--site
                    Unit ([none|ki|Mi|Gi])
             -b|--bytes
                    Use bytes/second instead of bits/second
+            -p|--proxy
+                   Use a proxy
             -q|--quiet
                    Print result only
             -h|--help
                    Print this help text
+Example:
+$MY_NAME -p http://proxy.xx:8080 --quiet
+    Test speed via proxy proxy.xx:8080 and print only the result
 
 END
 }
 
 # Check input
-OPTIONS_LONG="site:,repeats:,unit:,bytes,quiet,help"
-OPTIONS_SHORT="s:,r:,u:,b,q,h"
+OPTIONS_LONG="proxy:,site:,repeats:,unit:,bytes,quiet,help"
+OPTIONS_SHORT="p:,s:,r:,u:,b,q,h"
 if ! PARSED_OPTIONS=$(getopt -qn "$0" -o "$OPTIONS_SHORT" -l "$OPTIONS_LONG" -- "$@"); then
 	echo "Error: Invalid option" >&2
 	usage >&2
@@ -81,25 +86,32 @@ while [[ $# -ge 1 ]]; do
 		-h|--help)
 			usage
 			exit 0 ;;
-		-s|--site)
-			if [[ -n "$2" ]]; then
-				REMOTE=$2
+		-p|--proxy)
+			if [[ -n "$(echo $2)" ]]; then
+				PROXY=$(echo $2)
 			else
-				echo "Error for -a, using default" >&2
+				echo "Error: Empty value for -p, not using proxy" >&2
+			fi
+			shift ;;
+		-s|--site)
+			if [[ -n "$(echo $2)" ]]; then
+				REMOTE=$(echo $2)
+			else
+				echo "Error: Empty value for -s, using default" >&2
 			fi
 			shift ;;
 		-r|--repeats)
-			i=$2
+			i=$(echo $2)
 			# Check for integer
 			if (( i / i )) &>/dev/null; then
-				ITERATIONS=$[i/1]
+				ITERATIONS=$i
 			else
 				echo "Error for -r (\"$2\"), using default" >&2
 			fi
 			unset i
 			shift ;;
 		-u|--unit)
-			i=$2
+			i=$(echo $2)
 			i=${i,,}
 			if [[ "$i" =~ ^(n|k|m|g)$ ]]; then
 				UNIT=$i
@@ -126,6 +138,32 @@ done
 REMOTE=${REMOTE:-$FALLBACK_SITE}
 ITERATIONS=${ITERATIONS:-$ITERATIONS_DEFAULT}
 
+# Check proxy string
+if [[ -n "$PROXY" ]]; then
+	# Check protocol
+	if [[ ! "$PROXY" =~ :// ]]; then
+		PROXY="http://$PROXY"
+		[[ -z "$QUIET" ]] && echo "Adding protocol HTTP to proxy address"
+	fi
+	PROTO=${PROXY%%:*}
+	PROTO=${PROTO,,}
+	if [[ ! "$PROTO" =~ ^(https?|ftp)$ ]]; then
+		echo "Error: Unknown protocol for proxy (\"${PROXY%%:*}\"), accepting only http(s) or ftp" >&2
+		exit 1
+	fi
+	PROXY=${PROTO}:${PROXY#*:}
+	# Check port
+	if [[ ! "${PROXY##*:}" =~ [0-9]{2,} ]]; then
+		echo 'Error: No port for proxy' >&2
+		usage >&2
+		exit 1
+	fi
+	# Set proxy
+	for PRX in http https ftp; do
+		declare -x "${PRX}_proxy=$PROXY"
+	done
+fi
+
 # Bits or bytes?
 if [[ ! $BYTES ]]; then
 	WGET_PARAMS+=' --report-speed=bits'
@@ -134,7 +172,14 @@ else
 	BYTES=B
 fi
 
-[[ -z "$QUIET" ]] && echo "Testing speed to $REMOTE over $ITERATIONS iterations"
+if [[ -z "$QUIET" ]]; then
+	echo -n "Testing speed to $REMOTE over $ITERATIONS iterations "
+	if [[ -n "$http_proxy" ]]; then
+		echo "via proxy $http_proxy"
+	else
+		echo
+	fi
+fi
 
 # Checking connectivity
 if ! wget $WGET_PARAMS -t 3 -T 1 -q "$REMOTE"; then
