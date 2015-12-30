@@ -13,6 +13,13 @@ FALLBACK_SITE=google.com
 ITERATIONS_DEFAULT=3
 WGET_PARAMS="--ignore-length --no-check-certificate --no-cache -O /dev/null"
 
+# Sanitise environment
+IFS=$'\n'
+for VAR in $(env | awk -F= 'BEGIN {IGNORECASE=1} ! /^(path|user|home|display|ifs)/ {print $1}'); do
+	unset $VAR
+done
+unset IFS
+
 # Check sanity
 if [[ "${BASH_VERSION%%.*}" -lt 4 || -z "$BASH_VERSION" ]]; then
 	echo "Error: We need Bash version 4 or higher, can't continue" >&2
@@ -69,7 +76,6 @@ fi
 OPTERR=0
 eval set -- "$PARSED_OPTIONS"
 
-unset REMOTE ITERATIONS UNIT BYTES QUIET
 while [[ $# -ge 1 ]]; do
 	case $1 in
 		-h|--help)
