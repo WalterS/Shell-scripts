@@ -47,32 +47,38 @@ MAG[G]=3
 # Print help text
 usage (){
 cat <<END
-$MY_NAME downloads a website and measures mean speed over given iterations
 
-Parameters: -s|--site
-                   URL (default: $FALLBACK_SITE)
-            -r|--repeats
-                   How often to test for mean speed (default: $ITERATIONS_DEFAULT)
-            -u|--unit [n|k|m|g]
-                   Unit ([none|ki|Mi|Gi])
-            -b|--bytes
+$MY_NAME downloads a website with wget and measures mean speed over given iterations
+
+Parameters: -b|--bytes
                    Use bytes/second instead of bits/second
-            -p|--proxy
+            -h|--help
+                   Print this help text
+            -p|--proxy <proxy:port>
                    Use a proxy
             -q|--quiet
                    Print result only
-            -h|--help
-                   Print this help text
-Example:
-$MY_NAME -p http://proxy.xx:8080 --quiet
-    Test speed via proxy proxy.xx:8080 and print only the result
+            -r|--repeats <n>
+                   How often to test for mean speed (default: $ITERATIONS_DEFAULT)
+            -s|--site <url>
+                   URL (default: $FALLBACK_SITE)
+            -u|--unit [n|k|m|g]
+                   Use unit ([none|ki|Mi|Gi]) i.g. Mb/s
+
+All parameters are optional
+
+Examples:    $MY_NAME -r 5
+                   Test speed to $FALLBACK_SITE, use five iterations for computing mean speed
+
+             $MY_NAME -p http://proxy.xx:8080 --quiet --site=https://example.com --unit n
+                   Test speed to https://stackoverflow.com via proxy proxy.xx:8080 and print the result in bits/second only
 
 END
 }
 
 # Check input
-OPTIONS_LONG="proxy:,site:,repeats:,unit:,bytes,quiet,help"
-OPTIONS_SHORT="p:,s:,r:,u:,b,q,h"
+OPTIONS_LONG="proxy:,repeats:,site:,unit:,bytes,quiet,help"
+OPTIONS_SHORT="p:,r:,s:,u:,b,q,h"
 if ! PARSED_OPTIONS=$(getopt -qn "$0" -o "$OPTIONS_SHORT" -l "$OPTIONS_LONG" -- "$@"); then
 	echo "Error: Invalid option" >&2
 	usage >&2
@@ -83,6 +89,8 @@ eval set -- "$PARSED_OPTIONS"
 
 while [[ $# -ge 1 ]]; do
 	case $1 in
+		-b|--b.tes)
+			BYTES=1 ;;
 		-h|--help)
 			usage
 			exit 0 ;;
@@ -93,13 +101,8 @@ while [[ $# -ge 1 ]]; do
 				echo "Error: Empty value for -p, not using proxy" >&2
 			fi
 			shift ;;
-		-s|--site)
-			if [[ -n "$(echo $2)" ]]; then
-				REMOTE=$(echo $2)
-			else
-				echo "Error: Empty value for -s, using default" >&2
-			fi
-			shift ;;
+		-q|--quiet)
+			QUIET=1 ;;
 		-r|--repeats)
 			i=$(echo $2)
 			# Check for integer
@@ -109,6 +112,13 @@ while [[ $# -ge 1 ]]; do
 				echo "Error for -r (\"$2\"), using default" >&2
 			fi
 			unset i
+			shift ;;
+		-s|--site)
+			if [[ -n "$(echo $2)" ]]; then
+				REMOTE=$(echo $2)
+			else
+				echo "Error: Empty value for -s, using default" >&2
+			fi
 			shift ;;
 		-u|--unit)
 			i=$(echo $2)
@@ -120,10 +130,6 @@ while [[ $# -ge 1 ]]; do
 			fi
 			unset i
 			shift ;;
-		-b|--b.tes)
-			BYTES=1 ;;
-		-q|--quiet)
-			QUIET=1 ;;
 		--)
 			break ;;
 		*)
