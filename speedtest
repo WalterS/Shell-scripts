@@ -25,7 +25,7 @@ if [[ "${BASH_VERSION%%.*}" -lt 4 || -z "$BASH_VERSION" ]]; then
 	echo "Error: We need Bash version 4 or higher, can't continue" >&2
 	exit 1
 fi
-for PRG in wget awk; do
+for PRG in bc wget awk; do
 	if ! which $PRG &>/dev/null; then
 		echo "Error: Could not find ${PRG}, can't continue" >&2
 		exit 1
@@ -189,11 +189,11 @@ fi
 
 # Checking connectivity
 if ! wget $WGET_PARAMS -t 3 -T 1 -q "$REMOTE"; then
-	if [[ $REMOTE == google.com ]]; then
+	if [[ "$REMOTE" == "$FALLBACK_SITE" ]]; then
 		echo "Error: Network unreachable" >&2
 		exit 1
 	else
-		echo "Could not get \"$REMOTE\", trying google.com instead" >&2
+		echo "Could not get $REMOTE, trying $FALLBACK_SITE instead" >&2
 		if wget $WGET_PARAMS -t 3 -T 1 -q "$FALLBACK_SITE"; then
 			REMOTE=$FALLBACK_SITE
 		else
