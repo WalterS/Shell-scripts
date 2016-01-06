@@ -188,8 +188,15 @@ if [[ -z "$QUIET" ]]; then
 	fi
 fi
 
-# Checking connectivity
-if ! wget $WGET_PARAMS -t 3 -T 1 -q "$REMOTE"; then
+# Checking connectivity, use only host address (+ protocol)
+REMOTE_ARR=( $(awk -F'/+' '{for (i=1;i<=NF;i++) {printf $i" "}} END {printf "\n"}'<<<$REMOTE) )
+if [[ "${REMOTE_ARR[0]}" =~ tp.*:$ ]]; then
+	REMOTE_TEST="${REMOTE_ARR[0]}//${REMOTE_ARR[1]}"
+else
+	REMOTE_TEST=${REMOTE_ARR[0]}
+fi
+wget $WGET_PARAMS -t 3 -T 1 -q $REMOTE_TEST
+if [[ $? == 4 ]]; then
 		echo "Error: Network unreachable" >&2
 		exit 1
 fi
@@ -199,7 +206,7 @@ set -o pipefail
 for (( COUNTER=1; COUNTER <= $ITERATIONS; COUNTER++)); do
 	SPEED=${SPEED:-0}
 	if ! SPEED_CURRENT=$(wget $WGET_PARAMS -v $REMOTE 2>&1|awk -F'[)|(]' '/saved/ {print $2}'); then
-		echo "Error while downloading $REMOTE, are the wget options ($WGET_PARAMS -v) correct?" >&2
+		echo "Error while downloading $REMOTE, are the address and wget options ($WGET_PARAMS -v) correct?" >&2
 		exit 1
 	fi
 	[[ -z "$SPEED_CURRENT" ]] && continue
