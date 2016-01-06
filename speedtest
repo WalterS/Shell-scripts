@@ -180,7 +180,8 @@ else
 fi
 
 if [[ -z "$QUIET" ]]; then
-	echo -n "Testing speed to $REMOTE over $ITERATIONS iterations "
+	[[ $ITERATIONS -ne 1 ]] && S=s
+	echo -n "Testing speed to $REMOTE over $ITERATIONS iteration$S"
 	if [[ -n "$http_proxy" ]]; then
 		echo "via proxy $http_proxy"
 	else
