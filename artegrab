@@ -48,7 +48,8 @@ if ! grep -q 'arte.tv/'<<<$1; then
 fi
 
 # Create JSON URLs
-JSON=$(curl -s "$1"|awk -F'\"' '/ALL.json/ {print $(NF-1);exit}')
+JSON=$(curl -s $1|awk -F'=| +' '/ALL.json/ {print $(NF-2);exit}')
+JSON=${JSON//\'/}
 if grep -q '/D/' <<<$JSON; then
 	JSON_FR=$(sed 's#D/#F/#g'<<<$JSON)
 	JSON_DE=$JSON
