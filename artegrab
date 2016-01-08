@@ -62,8 +62,10 @@ if [[ -z "$JSON_DE" || -z "$JSON_FR" ]]; then
 	echo "Error: no link sources found, either this is the wrong URL or it is older than 7 days" >&2
 	exit 1
 fi
+TITLE=$(curl -s $1|awk -F'<|>' '/title/ {gsub(" \\| ARTE","");print $3;exit}')
+TITLE=${TITLE:-video}
 
-JSON=
+unset JSON
 
 # Extract HD rtmp links from JSON
 for JSON in "$JSON_DE" "$JSON_FR"; do
@@ -82,7 +84,7 @@ echo "Found ${#LINKS[@]} links:"
 for i in $(eval echo "{0..$[${#LINKS[@]}-1]}"); do
 	TMP=()
 	IFS='§' TMP=(${LINKS[$i]})
-	echo -e "${TMP[-1]}:\nrtmpdump -r \"${TMP[0]}\" -y \"mp4:${TMP[1]}\""
+	echo -e "${TMP[-1]}:\nrtmpdump -r \"${TMP[0]}\" -y \"mp4:${TMP[1]}\" -o '${TITLE//\//_} ${TMP[-1]}.mp4'"
 done
 
 exit 0
