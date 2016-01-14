@@ -4,13 +4,28 @@
 ############################################################
 
 # Source global definitions
-if [ -f /etc/bashrc ]; then
+if [[ -f /etc/bashrc ]]; then
 	. /etc/bashrc
 fi
 
-## Setting up the environment
-# Add sbin and user's bin to system path
-PATH="~/bin:/sbin:/usr/sbin:${PATH}"
+# Disable timeout
+if [[ -n "$TMOUT" ]]; then
+	env -i bash --init-file $0
+fi
+
+# Add local bin to path if present
+if [[ -d "$HOME/bin" ]] ; then
+	if [[ ! ":${PATH}:" == *":${HOME}/bin:"* ]]; then
+		PATH="$HOME/bin:$PATH"
+	fi
+fi
+for p in /sbin /usr/sbin; do
+	if [[ ! ":${PATH}:" == *":${p}:"* ]]; then
+		PATH=${PATH}:$p
+	fi
+done
+unset p
+
 # No duplicates in history
 export HISTCONTROL="ignoreboth:erasedups"
 # Max history file size
@@ -47,67 +62,83 @@ fi
 
 ## Functions
 
-# Remove duplicates from path
-path_condense () {
-	local PATH=$(sed 's#~#'$(echo ~)'#g'<<<$PATH) IFS=: MY_PATH PATH_PART
-	# Pure Bash version, needs version >= 4 for associative arrays
-	# This is faster and safer than the awk version
-	if [[ ${BASH_VERSINFO[0]} -ge 4 ]]; then
-		local -A PATH_ARR
-		for PATH_PART in $PATH; do
-			if [[ -z "${PATH_ARR[$PATH_PART]}" ]]; then
-				MY_PATH="${MY_PATH}:$PATH_PART"
-				PATH_ARR[$PATH_PART]=1
-			fi
-		done
-		[[ "$MY_PATH" =~ ^: ]] && MY_PATH=${MY_PATH#*:}
-		[[ -n "$MY_PATH" ]] && export PATH=$MY_PATH
-	else
-		if awk --version 2>/dev/null | grep -q GNU; then
-			export PATH=$(awk -F: '{for(i=1;i<=NF;i++) if(!($i in arr)){arr[$i];printf s$i;s=":"}}'<<<$PATH)
-		fi
-	fi
+# Show if we are in a screen session
+is_screen (){
+[[ -n "$STY" ]] && echo "This is a screen session"
 }
 
 # Function for process list search
 # Search process list for a given string (case insensitiv)
 psgrep () {
-	ps -ef | grep -i -- "$(sed -r 's/[[:alnum:]]/[&]/'<<<"$1")"
+ps -ef | grep -i -- "$(sed -r 's/[[:alnum:]]/[&]/'<<<"$1")"
 }
 
 # Function for command history search
 h () {
-	local IFS=$'\n'
-	## Simple version with grep:
-	# grep: `history | grep -i "$*"`"
+local IFS=$'\n'
+## Simple version with grep:
+# grep: `history | grep -i "$*"`"
 
-	## Extended version with awk, doesn't echo the current command line
-	## and searches only in the command column.
-	# You can use "^", "$" and other regular expressions now.
+## Extended version with awk, doesn't echo the current command line
+## and searches only in the command column.
+# You can use "^", "$" and other regular expressions now.
 
-	local STR="$*"
-	STR=$(sed 's/\//\\\\\//g; s/\!/\\\!/g; s/\?/\\\?/g'<<<$STR)
+local STR="$*"
+STR=$(sed 's/\//\\\\\//g; s/\!/\\\!/g; s/\?/\\\?/g'<<<$STR)
 
-	# If no search expression given, just print the whole history
-	if [[ -z "$STR" ]]; then
-		history
-		return
-	fi
+# If no search expression given, just print the whole history
+if [[ -z "$STR" ]]; then
+	history
+	return
+fi
 
-	local LHISTCMD=$((HISTCMD-1))
-	history | awk -F'^ *[0-9]+ +' 'BEGIN {IGNORECASE=1}; $2~/'"$STR"'/' |  awk '$1 !~ /'"$LHISTCMD"'/'
-	# If 'HISTTIMEFORMAT="%y-%m-%d %T "' is used:
-	# history | awk -F'^.*[0-9][0-9]:[0-9][0-9]:[0-9][0-9] +' 'BEGIN {IGNORECASE=1}; $2~/'"$STR"'/' |  awk '$1 !~ /'"$LHISTCMD"'/'
+local LHISTCMD=$((HISTCMD-1))
+history | awk -F'^ *[0-9]+ +' 'BEGIN {IGNORECASE=1}; $2~/'"$STR"'/' | awk '$1 !~ /'"$LHISTCMD"'/'
+# If 'HISTTIMEFORMAT="%y-%m-%d %T "' is used:
+# history | awk -F'^.*[0-9][0-9]:[0-9][0-9]:[0-9][0-9] +' 'BEGIN {IGNORECASE=1}; $2~/'"$STR"'/' | awk '$1 !~ /'"$LHISTCMD"'/'
 }
 
 # Function for pulling Git repository
+# Assumes that either the current directory equals the name in ~/.gitconfig
+# or that everything after "/git" corresponds to the repository path in Github
+#
 git_current() {
-	local LPWD=${PWD##*/}
-	if ! grep -q 'remote "'$LPWD'"' ~/.gitconfig; then
-		echo "$LPWD is not defined in ~/.gitconfig" >&2
-		return 1
+local GITHUB='github.com'
+local REPONAME=${PWD##*/}
+local REPOBRANCH
+if ! egrep -qw 'master|release'<<<$1; then
+	REPOBRANCH='master'
+else
+	REPOBRANCH=$1
+fi
+if ! 'grep' -q 'remote "'$REPONAME'"' ~/.gitconfig; then
+	echo "$REPONAME is not defined in ~/.gitconfig, trying Github"
+	REPONAME="$(sed 's#^.*git/#git@'$GITHUB':#'<<<$(pwd)).git"
+fi
+
+git checkout $REPOBRANCH &> /dev/null
+git pull --rebase $REPONAME $REPOBRANCH
+}
+
+# Try to login to a remote machine indefinitely
+ssh_wait () {
+local MY_USER MY_HOST INPUT
+[[ -z "$1" || $# -ne 1 ]] && return 1
+INPUT=$1
+if [[ "$INPUT" =~ @ ]]; then
+	MY_USER="${INPUT%@*}@"
+	MY_HOST=${INPUT#*@}
+else
+	MY_HOST=$INPUT
+fi
+
+while true; do
+	if (echo >/dev/tcp/${MY_HOST}/22) &>/dev/null; then
+		ssh ${MY_USER}${MY_HOST}
+		break
 	fi
-	git pull $LPWD --rebase
+	sleep 5
+done
 }
 
 ## Aliases
@@ -145,7 +176,5 @@ linux*)
 	export PS1='\[\u@\h:\w[\!]\$i\]'
 	;;
 esac
-
-path_condense
 
 # EOF
