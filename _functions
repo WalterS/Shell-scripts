@@ -1,9 +1,7 @@
 #!/bin/bash
 
 ############################################################
-# _functions
-#
-# Bash functions collection
+# my_functions
 #
 # WS 20160107
 ############################################################
@@ -86,6 +84,7 @@ if [[ $1 =~ ^-(h|-help)$ ]]; then
 	EOM
 	return
 fi
+unalias -a
 local VAR IFS
 IFS=$'\n'
 for VAR in $(env | awk -F= 'BEGIN {IGNORECASE=1} ! /^(path|user|home|display|ifs)/ {print $1}'); do
