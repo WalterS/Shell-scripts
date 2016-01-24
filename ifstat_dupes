@@ -1,0 +1,149 @@
+#!/bin/bash
+
+############################################################
+# ifstat_dupes
+#
+# Handle duplicate interfaces for mrtg
+#
+# WS 20160124
+############################################################
+
+MY_NAME=${0##*/}
+
+# Purge environment
+IFS=$'\n'
+unalias -a
+for VAR in $(env | awk -F= 'BEGIN {IGNORECASE=1} ! /^(path|user|home|display|ifs)/ {print $1}'); do
+	unset $VAR &>/dev/null
+done
+unset IFS VAR
+
+# Print help
+usage () {
+cat <<END
+
+$MY_NAME prints interface counters for mrtg
+
+Parameters: -c|--community
+               snmp v2c community string
+            -s|--server
+              target host, use IP address or FQDN
+            -i|--interface
+              interface name
+            -h|--help
+              this help text
+
+Example:    $MY_NAME -c public -s host.example.com -i wlan0
+
+END
+}
+
+# Check input
+OPTIONS_LONG="community:,server:,interface:,help"
+OPTIONS_SHORT="c:,s:,i:,h"
+if ! PARSED_OPTIONS=$(getopt -n $MY_NAME -o "$OPTIONS_SHORT" -l "$OPTIONS_LONG" -- "$@"); then
+	echo "Error: Wrong or missing option" >&2
+	usage >&2
+	exit 2
+fi
+
+eval set -- "$PARSED_OPTIONS"
+
+while [[ $# -ge 1 ]]; do
+	case $1 in
+		-c|--community)
+			COMMUNITY=$(echo $2) ;;
+		-s|--server)
+			HOST=$(echo $2) ;;
+		-i|--interface)
+			IF=$(echo $2) ;;
+		-h|--help)
+			usage; exit ;;
+		--) break ;;
+	esac
+	shift 2
+done
+
+for VAR in IF COMMUNITY HOST; do
+	if [[ -z "$(eval echo \$$VAR)" ]]; then
+		echo "Error: $VAR not set" >&2
+		usage >&2
+		exit 1
+	fi
+done
+
+# Print error
+print_error () {
+echo -e "0\n0\nError: $*"
+exit 1
+}
+
+# Only one connection to target host
+IFS=$'\n'
+if ! SNMP_ALL=( $(snmpbulkget -v 2c -c $COMMUNITY $HOST ifDescr ifHCInOctets ifHCOutOctets hrSystemUptime) ); then
+	echo "Error: SNMP connect failed" >&2
+	exit 1
+fi
+unset IFS
+
+# Get indices
+getindices () {
+local LINE IF_INDEX_A IFS=$'\n'
+for LINE in ${SNMP_ALL[@]}; do
+	if [[ "$LINE" =~ ifDescr.*:\ "${IF}"$ ]]; then
+		LINE=$(egrep -o '\.[0-9]+ '<<<$LINE)
+		IF_INDEX_A+=( ${LINE#*.} )
+	fi
+done
+
+echo ${IF_INDEX_A[@]}
+}
+
+# Collect counters
+getstat () {
+local D INDEX STAT VALUE IFS
+case $1 in
+	"-in") D=In ;;
+	"-out") D=Out ;;
+	* ) exit 1 ;;
+esac
+for INDEX in $2; do
+		IFS=$'\n'
+	for STAT in ${SNMP_ALL[@]}; do
+		if [[ $STAT =~ "ifHC${D}Octets.${INDEX} =" ]]; then
+			STAT=${STAT##* }
+			VALUE=$[VALUE + STAT]
+		fi
+	done
+done
+[[ -z "$VALUE" ]] && print_error "No counters found for $IF"
+echo $[$VALUE * 8]
+}
+
+# Get uptime
+uptime_ () {
+local LINE IFS=$'\n' UPTIME
+for LINE in ${SNMP_ALL[@]}; do
+	if [[ "$LINE" =~ hrSystemUptime ]]; then
+		UPTIME=${LINE##*) }
+		UPTIME=${UPTIME%.*}
+	fi
+done
+echo $UPTIME
+}
+
+# Get indices, abort on error
+INDICES=$(getindices)
+[[ -z "$INDICES" ]] && print_error "Interface $IF not found"
+
+IN=$(getstat -in "$INDICES")
+OUT=$(getstat -out "$INDICES")
+
+# Print output
+cat <<-EOM
+$IN
+$OUT
+$(uptime_)
+$HOST
+EOM
+
