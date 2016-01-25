@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ############################################################
-# check_snmp_cpu
+# check_cpu_snmp
 #
 # Get overall CPU load in percent by SNMP for mrtg
 #
