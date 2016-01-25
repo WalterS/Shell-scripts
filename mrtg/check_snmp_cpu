@@ -80,48 +80,29 @@ exit 1
 
 # Only one connection to target host
 IFS=$'\n'
-if ! SNMP_ALL=( $(snmpbulkget -v 2c -c $COMMUNITY $HOST -Os hrProcessor hrSystemUptime) ); then
+if ! SNMP_ALL=( $(snmpbulkget -v 2c -c $COMMUNITY -Os $HOST hrProcessor hrSystemUptime) ); then
 	echo "Error: SNMP connect failed" >&2
 	exit 1
 fi
 
-# Get load for each CPU and dived by numbers of CPUs
-getload () {
-local LINE LOAD PROCS=0 IFS=$'\n'
+# Parse SNMP response
 for LINE in ${SNMP_ALL[@]}; do
-	if [[ "$LINE" =~ "hrProcessorLoad" ]]; then
-		LINE=${LINE##* }
-		# Throw error if not an integer
-		if ! (echo $[LINE / LINE]) &>/dev/null; then
-			print_error "Function ${FUNCNAME[0]}: Expected an integer, got \"$LINE\""
-		fi
-		LOAD=$[LOAD + LINE]
-		(( PROCS++ ))
-	fi
+	case $LINE in
+		*hrProcessorLoad.*)
+			(( PROC_NUM++ ))
+			[[ "${LINE##* }" =~ ^[0-9]+\.?[0-9]*$ ]] || print_error "Expected a number, got \"$LINE\""
+			let LOAD="LOAD + ${LINE##* }"
+		;;
+		*hrSystemUptime.*)
+			UPTIME=${LINE##*) }
+			UPTIME=${UPTIME%.*}
+		;;
+	esac
 done
-[[ $PROCS -eq 0 ]] && print_error "No CPUs found"
-echo $[LOAD / PROCS ]
-}
 
-# Get uptime
-uptime_ () {
-local LINE IFS=$'\n' UPTIME
-for LINE in ${SNMP_ALL[@]}; do
-	if [[ "$LINE" =~ hrSystemUptime ]]; then
-		UPTIME=${LINE##*) }
-		UPTIME=${UPTIME%.*}
-	fi
-done
-echo $UPTIME
-}
+# Error handling
+[[ "$PROC_NUM" -eq 0 ]] && print_error "No CPUs found"
 
-LOAD=$(getload)
-
-# Print output
-cat <<-EOM
-	$LOAD
-	0
-	$(uptime_)
-	${DISPLAY_NAME:-$HOST}
-EOM
+bc -l<<<"scale=2;$LOAD / $PROC_NUM" || print_error "Could not execute \"bc -l\" with \"scale=2;$LOAD / $PROC_NUM\""
+echo -e "0\n$UPTIME\n${DISPLAY_NAME:-$HOST}"
 
