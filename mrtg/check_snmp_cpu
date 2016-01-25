@@ -18,6 +18,12 @@ for VAR in $(env | awk -F= 'BEGIN {IGNORECASE=1} ! /^(path|user|home|display|ifs
 done
 unset IFS VAR
 
+# Set SNMP search strings
+# hrProcessorLoad
+SNMP_PROCS='.1.3.6.1.2.1.25.3.3.1.2'
+# hrSystemUptime
+SNMP_UPTIME='.1.3.6.1.2.1.25.1.1'
+
 # Print help
 usage () {
 cat <<END
@@ -80,7 +86,7 @@ exit 1
 
 # Only one connection to target host
 IFS=$'\n'
-if ! SNMP_ALL=( $(snmpbulkget -v 2c -c $COMMUNITY -Os $HOST hrProcessor hrSystemUptime) ); then
+if ! SNMP_ALL=( $(snmpbulkget -v 2c -c $COMMUNITY -Osn $HOST $SNMP_PROCS $SNMP_UPTIME) ); then
 	echo "Error: SNMP connect failed" >&2
 	exit 1
 fi
@@ -88,12 +94,12 @@ fi
 # Parse SNMP response
 for LINE in ${SNMP_ALL[@]}; do
 	case $LINE in
-		*hrProcessorLoad.*)
+		${SNMP_PROCS}.*)
 			(( PROC_NUM++ ))
 			[[ "${LINE##* }" =~ ^[0-9]+\.?[0-9]*$ ]] || print_error "Expected a number, got \"$LINE\""
 			let LOAD="LOAD + ${LINE##* }"
 		;;
-		*hrSystemUptime.*)
+		${SNMP_UPTIME}.*)
 			UPTIME=${LINE##*) }
 			UPTIME=${UPTIME%.*}
 		;;
