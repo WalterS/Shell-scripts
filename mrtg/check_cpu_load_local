@@ -1,0 +1,109 @@
+#!/bin/bash
+
+############################################################
+# check_cpu__load_local
+#
+# Get overall CPU load from /proc/loadavg for mrtg
+#
+# WS 20160124
+############################################################
+
+MY_NAME=${0##*/}
+
+# Purge environment
+IFS=$'\n'
+unalias -a
+for VAR in $(env | awk -F= 'BEGIN {IGNORECASE=1} ! /^(path|user|home|display|ifs)/ {print $1}'); do
+	unset $VAR &>/dev/null
+done
+unset IFS VAR
+
+# Print help
+usage () {
+cat <<END
+
+$MY_NAME prints overall CPU load from /proc/loadavg for mrtg
+
+Parameters: -n|--name
+              Display different name (optional)
+            -h|--help
+              this help text
+
+Example:    $MY_NAME -n host.example.com
+
+END
+}
+
+# Check input
+OPTIONS_LONG="name:,help"
+OPTIONS_SHORT="n:,h"
+if ! PARSED_OPTIONS=$(getopt -n $MY_NAME -o "$OPTIONS_SHORT" -l "$OPTIONS_LONG" -- "$@"); then
+	echo "Error: Wrong or missing option" >&2
+	usage >&2
+	exit 2
+fi
+
+eval set -- "$PARSED_OPTIONS"
+
+while [[ $# -ge 1 ]]; do
+	case $1 in
+		-n|--name)
+			DISPLAY_NAME=$(echo $2) ;;
+		-h|--help)
+			usage; exit ;;
+		--) break ;;
+	esac
+	shift 2
+done
+
+# Print error
+print_error () {
+echo -e "0\n0\nError: $*"
+exit 1
+}
+
+# Print a neat human readable uptime
+uptime_ () {
+local DAY=days HOUR=hours MIN=minutes D H M T
+
+if ! T=$(cat /proc/uptime); then
+	echo "Could not read /proc/uptime" >&2
+	return 1
+fi
+
+T=${T%%.*}
+D=$((T/86400))
+[[ $D = 1 ]] && DAY=day
+
+T=$((T%86400))
+H=$(($T/3600))
+[[ $H = 1 ]] && HOUR=hour
+
+T=$((T%3600))
+M=$(($T/60))
+[[ $M = 1 ]] && MIN=minute
+
+echo "$D $DAY, $H $HOUR, $M $MIN"
+}
+
+# Get number of CPUs
+CPU_COUNT=$(grep -c ^processor /proc/cpuinfo) || print_error "Could not execute \"grep -c ^processor /proc/cpuinfo\""
+
+# Get load average
+LOAD=$(awk '{print $2*100/'$CPU_COUNT'}' /proc/loadavg) || print_error "Could not execute \"awk '{print \$2*100/'$CPU_COUNT'}'\""
+
+# Get hostname
+HOST=$(hostname -s)
+
+# Print output
+cat <<-EOM
+	$LOAD
+	0
+	$(uptime_)
+	${DISPLAY_NAME:-$HOST}
+EOM
+
+
+
+
+
