@@ -34,7 +34,7 @@ send_mail_ (){
 if ! grep -qw "1:${#UPDATES[@]}" $LOG 2>/dev/null; then
 	mail -s "${#UPDATES[@]} updates available on $HOSTNAME" $MAIL_ADD<<EOH
 The following packages can be updated:
-$(IFS=$'\n'; echo "${UPDATES[*]}")
+$(for PKG in ${UPDATES[@]}; do echo $PKG;done)
 EOH
 	echo "1:${#UPDATES[@]}" >$LOG
 fi
@@ -44,10 +44,12 @@ fi
 if which apt-get &>/dev/null; then
 	apt-get update &>/dev/null
 	IFS=' ' UPDATES=($(apt-get -qs dist-upgrade 2>/dev/null | awk '/upgraded:$/,/upgraded\.$/ {gsub("\n","")} {if($0~/^[[:blank:]]/) {str=str" "$0}} END {print str}'))
+elif which dnf &>/dev/null; then
+	IFS=$'\n' UPDATES=($(dnf --refresh --setopt=timeout=5 upgrade<<<'n' 2> /dev/null|awk '/^Installing:/,/^(Remov|Skipp)ing/ {if (/^ [a-z]/) {print $1}}'|sort))
 elif which yum &>/dev/null; then
-	IFS=$'\n' UPDATES=($(yum -q --setopt=timeout=5 --setopt=retries=2 check-updates 2> /dev/null|awk '/^[[:alpha:]]/ && !/Security:|Could |Error/ {print $1}'))
+	IFS=$'\n' UPDATES=($(yum -q --setopt=timeout=5 --setopt=retries=2 check-update 2> /dev/null|awk '/^[[:alpha:]]/ && !/Security:|Could |Error/ {print $1}'))
 else
-	echo "Fatal: Could not find yum or apt-get, can't continue" >&2
+	echo "Fatal: Could not find dnf, yum or apt-get, can't continue" >&2
 	exit 1
 fi
 
