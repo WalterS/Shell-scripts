@@ -47,12 +47,12 @@ fi
 
 
 # Get device info with either "udevinfo" or "udevadm"
-if query=$(which udevinfo 2> /dev/null); then
+if query=$(command -v udevinfo 2> /dev/null); then
 	$query -a -p $(udevinfo -q path -n $device)
 	rc=$?
 else
 
-	if query=$(which udevadm 2> /dev/null); then
+	if query=$(command -v udevadm 2> /dev/null); then
 		$query info --attribute-walk --name=$device 
 		rc=$?
 	else

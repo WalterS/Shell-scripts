@@ -6,29 +6,13 @@
 #
 # WS 20110326
 ############################################################
-########## Changes ##########
-####
-# Errors are printed to stderr now
-# WS 20110407
-####
-# Made the script more portable, it uses either wget or curl
-# and takes into account different versions of awk (can be run
-# on a Mac now)
-# WS 20110418
-####
-# Used showip.net instead of dyndns.org because dyndns.org
-# returns the local instead of the external IP address when
-# using a proxy
-# WS 20110420
-####
 
-
-AWK=
-CURL=
-WGET=
-GET=
-IP_ADDRESS=
-IP_TEST=
+unset AWK \
+	CURL \
+	WGET \
+	GET \
+	IP_ADDRESS \
+	IP_TEST \
 
 # Look for awk
 if AWK=$(which awk 2>/dev/null); then

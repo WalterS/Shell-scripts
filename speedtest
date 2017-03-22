@@ -26,7 +26,7 @@ if [[ "${BASH_VERSION%%.*}" -lt 4 || -z "$BASH_VERSION" ]]; then
 	exit 1
 fi
 for PRG in bc wget awk; do
-	if ! which $PRG &>/dev/null; then
+	if ! command -v $PRG &>/dev/null; then
 		echo "Error: Could not find ${PRG}, can't continue" >&2
 		exit 1
 	fi
