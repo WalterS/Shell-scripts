@@ -3,8 +3,9 @@
 ############################################################
 # check_update
 #
-# Check for OS updates on yum and apt based systems and
-# send a mail on new updates
+# Check for OS updates on yum and apt based systems
+# and send mail if updates are found.
+# This is meant to run as a cron job.
 #
 # WS 20130125
 ############################################################
@@ -15,7 +16,7 @@
 # Mail address for notification
 MAIL_ADD="nn@nn.nn"
 # Status file
-LOG=/var/tmp/${0##*/}.log
+LOG="/var/tmp/${0##*/}.log"
 
 ######### Configuration end ##########
 
@@ -31,12 +32,12 @@ fi
 
 # Send mail with list of updates
 send_mail_ (){
-if ! grep -qw "1:${#UPDATES[@]}" $LOG 2>/dev/null; then
+if ! grep -qw "1:${#UPDATES[@]}" "$LOG" 2>/dev/null; then
 	mail -s "${#UPDATES[@]} updates available on $HOSTNAME" $MAIL_ADD<<EOH
 The following packages can be updated:
-$(for PKG in ${UPDATES[@]}; do echo $PKG;done)
+$(for PKG in ${UPDATES[*]}; do echo "$PKG";done)
 EOH
-	echo "1:${#UPDATES[@]}" >$LOG
+	echo "1:${#UPDATES[@]}" >"$LOG"
 fi
 }
 
@@ -55,11 +56,11 @@ fi
 
 # Check status file
 if [[ ${#UPDATES[@]} -eq 0 ]]; then
-	if ! grep -qw "0:0" $LOG 2>/dev/null; then
-		echo "0:0" >$LOG
+	if ! grep -qw "0:0" "$LOG" 2>/dev/null; then
+		echo "0:0" >"$LOG"
 	fi
 else
-	if ! grep -qw "1:${#UPDATES[@]}" $LOG; then
+	if ! grep -qw "1:${#UPDATES[@]}" "$LOG"; then
 		send_mail_
 	fi
 fi
