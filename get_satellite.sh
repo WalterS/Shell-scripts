@@ -10,39 +10,39 @@
 
 ########### Configure here ###########
 # Where to store the image
-dir=/home/walter/doc/weather
-# Base name, picture will be ${dir}/${name}.jpg and log file
-# ${dir}/${name}.log
-name=satellite
+DIR=/home/walter/doc/weather
+# Base name, picture will be ${DIR}/${NAME}.png and log file
+# ${DIR}/${NAME}.log
+NAME=satellite
 
 # Website(s) to use for scraping
-sites="http://www.yr.no/satellitt/europa.html http://www.yr.no/satellitt/europa_dag_natt.html"
+SITES="http://www.yr.no/satellitt/europa.html http://www.yr.no/satellitt/europa_dag_natt.html"
 
 # Search strings for scraping
 # Make sure to escape all <>.?/ etc.
-search_str1='="http:.*\/weatherapi\/geosatellite\/1\.3\?area=europe'
-search_str2='width=650'
+SEARCH_STR1='="http:.*\/weatherapi\/geosatellite\/1\.[0-9]\?area=europe'
+SEARCH_STR2='size=normal'
 
 # Which record (first=0)?
-occurrence=0
+OCCURRENCE=0
 
 # Debug switch
-debug=0
+DEBUG=0
 ######### Configuration end ##########
 
 # We want to exit cleanly
-trap 'rm -f ${dir}/${name}1.jpg &> /dev/null' 0
+trap 'rm -f ${DIR}/${NAME}1.png &> /dev/null' 0
 trap 'echo "Program aborted"; exit 3' 1 2 3 15
 
-rc=0
+RC=0
 
 # Some basic tests
-if ! [[ -d $dir ]] &> /dev/null; then
-	mkdir -p $dir
-	if ! [[ -d $dir ]] &> /dev/null; then
-		echo "Error: Directory $dir is not available" >&2
-		((rc++))
-		exit $rc
+if ! [[ -d "$DIR" ]] &> /dev/null; then
+	mkdir -p "$DIR"
+	if ! [[ -d "$DIR" ]] &> /dev/null; then
+		echo "Error: Directory $DIR is not available" >&2
+		((RC++))
+		exit $RC
 	fi
 fi
 
@@ -57,84 +57,96 @@ END
 # Function for grabbing the image
 getimage () {
 
-if wget -o $log -O ${dir}/${name}1.jpg $location; then
-	if [[ $debug = 1 ]]; then
-		cat << END >> $log
+if wget -o "$LOG" -O ${DIR}/${NAME}1.png $LOCATION; then
+	if [[ $DEBUG = 1 ]]; then
+		cat << END >> "$LOG"
 $(header)
 
-Debug: Downloaded image from $location
+Debug: Downloaded image from $LOCATION
 
 END
 	fi
 else
-	cat << END >> $log
+	cat << END >> "$LOG"
 $(header)
 
 Error: Could not download satellite image
-URL: $location
+URL: $LOCATION
 END
-	((rc++))
+	((RC++))
 	exit 1
 fi
 
-if [[ $? = 0 && -s ${dir}/${name}1.jpg ]]; then
-	mv -f ${dir}/${name}1.jpg ${dir}/${name}.jpg &>/dev/null
+if [[ $? = 0 && -s ${DIR}/${NAME}1.png ]]; then
+	touch -d "$(date -d @$(date -ud "$(sed 's/time=\|;//g;s/%3A/:/g;s/T\|Z/ /g'<<<$TIMESTAMP)" +'%s') '+%Y-%m-%d %H:%M:%S')" ${DIR}/${NAME}1.png
+	exiftool -q -m -P "-DateTimeOriginal<FileModifyDate" -overwrite_original ${DIR}/${NAME}1.png
+	mv -f ${DIR}/${NAME}1.png ${DIR}/${NAME}.png &>/dev/null
 fi
 }
 
-for site in $sites; do
-	qualifier=$(awk -F'[./]' '{print $(NF-1)}'<<<$site)
-	log=${dir}/${name}_${qualifier}.log
-	name=${name}_${qualifier}
+for SITE in $SITES; do
+	QUALIFIER=$(awk -F'[./]' '{print $(NF-1)}'<<<$SITE)
+	LOG=${DIR}/${NAME}_${QUALIFIER}.log
+	NAME=${NAME}_${QUALIFIER}
 
-	if ! touch $log &> /dev/null; then
-		echo "Error: Log file $log is not accessible" >&2
-		((rc++))
-		exit $rc
+	if ! touch "$LOG" &> /dev/null; then
+		echo "Error: Log file $LOG is not accessible" >&2
+		((RC++))
+		exit $RC
 	fi
 
 	############################################################
 	#### Here we go
 
 	# Get URL
-	location=$(wget -qO - $site | awk -F\" '(/'"$search_str1"'/ && /'"$search_str2"'/) && s=='"$occurrence"' {print $2; s++1}' 2>/dev/null)
+	LOCATION=$(wget -qO - $SITE | awk -F\" '(/'"$SEARCH_STR1"'/ && /'"$SEARCH_STR2"'/) && s=='"$OCCURRENCE"' {print $2; s++1}' 2>/dev/null)
 
-	if [[ -z "$location" ]]; then
-		cat << END >> $log
+	if [[ -z "$LOCATION" ]]; then
+		cat << END >> "$LOG"
 $(header)
 
 Error: Could not get URL for satellite image
 END
-		((rc++))
+		((RC++))
 		exit 1
 	fi
 
+	# awk -F'=|;|' '{gsub("%3A",":");print $6}' <<<$LOCATION
 	# Test whether picture has changed
-	if ! timestamp=$(awk -F'=|;|' '{print $(NF-2)}' <<<$location 2>/dev/null); then
-		timestamp_=$timestamp
-		timestamp=
+	if [[ $DEBUG = 1 ]]; then
+		cat <<- END >> "$LOG"
+			$(header)
+
+			Debug: Raw time stamp: $LOCATION
+
+		END
 	fi
 
-	if [[ -z "$timestamp" ]]; then
-		cat << END >> $log
+	if ! TIMESTAMP=$(awk -F'=|;|' '{print $6}' <<<$LOCATION); then
+		TIMESTAMP_=$TIMESTAMP
+		TIMESTAMP=
+	fi
+
+	if [[ -z "$TIMESTAMP" ]]; then
+		cat << END >> "$LOG"
 $(header)
 
-Error: Could not extract timestamp from URL for comparison ($timestamp_)
+Error: Could not extract timestamp from URL for comparison ($TIMESTAMP_)
 END
-		((rc++))
+		((RC++))
 		exit 1
 	fi
 
 	# Download only if picture has changed and when there is no error in log file
-	if grep -q $timestamp $log &> /dev/null; then
-		if egrep -q 'Error|failed' $log &>/dev/null; then
+	if grep -q $TIMESTAMP "$LOG"; then
+		if egrep -q 'Error|failed' "$LOG"; then
 			getimage
 		else
-			if [[ $debug = 1 ]]; then
-				cat << END >> $log
+			if [[ $DEBUG = 1 ]]; then
+				cat << END >> "$LOG"
 $(header)
 
-DEBUG: Link to image has not changed ($timestamp)
+Debug: Link to image has not changed ($TIMESTAMP)
 END
 			fi
 		fi
