@@ -18,7 +18,7 @@ fi
 C=0
 T=
 T_COUNT=2
-RANGE=${@:-day week month}
+RANGE=${*:-day week month}
 
 
 for T in $RANGE; do
@@ -30,7 +30,7 @@ for T in $RANGE; do
 	esac
 	rrdtool graph ${BASEDIR}/temp${C}${T}.png -s "now - $T_COUNT $T" -e 'now' \
 	-X 0 --font WATERMARK:7: \
-	--watermark "$(date)" \
+	--watermark "$(date '+%A %F %H:%M %Z')" \
 	--title "Temperature last $T_COUNT ${T}s" \
 	--vertical-label "°C" \
 	--slope-mode \
@@ -62,7 +62,7 @@ for T in $RANGE; do
 
 	rrdtool graph ${BASEDIR}/hum${C}${T}.png -s "now - $T_COUNT $T" -e 'now' \
 	-X 0 --font WATERMARK:7: \
-	--watermark "$(date)" \
+	--watermark "$(date '+%A %F %H:%M %Z')" \
 	--title "Humidity last $T_COUNT ${T}s" \
 	--vertical-label "%" \
 	--slope-mode \
@@ -98,9 +98,10 @@ for T in $RANGE; do
 #			PARAM='--x-grid HOUR:1:DAY:1:HOUR:3:0:%-H'
 #			PARAM='--x-grid HOUR:1:HOUR:6:HOUR:2:0:%-H'
 		"year")
-			PARAM='-Y -S 86400' ;;
+			PARAM='-Y -S 86400'
+			rrdtool dump "$RRD" "${RRD%.*}.xml" ;;
 		*)
-			PARAM= ;;
+			unset PARAM ;;
 	esac
 
 	T_COUNT1=$((T_COUNT+1))
@@ -109,7 +110,7 @@ for T in $RANGE; do
 	rrdtool graph ${BASEDIR}/temp_hum${C}${T}.png -s "now - $T_COUNT1 $T" -e 'now' -w 600 -h 120 \
 	$PARAM \
 	-X 0 --font WATERMARK:8: \
-	--watermark "$(date) ($(date -u '+%H:%M:%S UTC'))" \
+	--watermark "$(date '+%A %F %H:%M %Z') ($(date -u '+%H:%M UTC'))" \
 	--title "Temperature/humidity last $T_COUNT1 ${T}s" \
 	--units-length 3 \
 	--vertical-label "Temperature" \
