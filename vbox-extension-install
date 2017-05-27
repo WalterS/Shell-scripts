@@ -1,0 +1,61 @@
+#!/bin/bash
+
+############################################################
+# vbox-extension-install
+#
+# Install/update VirtualBox extension pack
+#
+# WS 20170527
+############################################################
+
+BASEADDRESS='http://download.virtualbox.org/virtualbox'
+
+if [ "$(id -u)" != "0" ]; then
+    CMD='sudo'
+fi
+
+unset EXTENSION PACKAGE VERSION
+
+trap '(rm *vbox-extpack;popd) &>/dev/null' 0
+
+PACKAGE=$(rpm -qa|grep -si virtualbox)
+if [[ -z "$PACKAGE" ]]; then
+	echo "Error: VirtualBox is not installed" >&2
+	exit 1
+fi
+
+VERSION_VB=$(rpm -q "$PACKAGE" --queryformat %{VERSION})
+VERSION_VB=${VERSION_VB%%_*}
+if [[ -z "$VERSION_VB" || ! $VERSION_VB =~ ^[0-9] ]]; then
+	echo "Error: Could not determine VirtualBox version (got \"$VERSION\")"
+	exit 1
+fi
+
+VERSION_CURRENT=$(VBoxManage list extpacks|awk 'BEGIN {n=0}/^(Version|Revision):/ {r=r"-"$NF} END {print gensub(/^-/,"",1,r)}')
+
+EXTENSION="$(wget -qO- "${BASEADDRESS}/$VERSION_VB" 2>/dev/null|awk -F'[>|<]' '/([0-9]+-[0-9]+).*-extpack/ {print $(NF-2);exit}')"
+if [[ -z "$EXTENSION" ]]; then
+	echo "Error: Could not get download link for extension pack from ${BASEADDRESS}/$VERSION_VB" >&2
+	exit 1
+fi
+
+VERSION_REMOTE=$(awk -F- '{gsub(/[^0-9]/,"",$3);print $2"-"$3}'<<<"$EXTENSION")
+
+if [[ "$VERSION_CURRENT" == "$VERSION_REMOTE" ]]; then
+	echo "Locally installed version $VERSION_CURRENT is still current, nothing to do"
+	exit
+fi
+
+if ! wget -qP /tmp "${BASEADDRESS}/${VERSION_VB}/$EXTENSION"; then
+	echo "Error: Could not download extension pack from ${BASEADDRESS}/${VERSION_VB}/$EXTENSION" >&2
+	exit 1
+fi
+
+if ! $CMD VBoxManage extpack install --replace "/tmp/$EXTENSION"; then
+	echo 'Error: Could not install extension pack' >&2
+	exit 1
+fi
+
+$CMD VBoxManage extpack cleanup
+
+# EOF
