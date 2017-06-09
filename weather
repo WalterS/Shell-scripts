@@ -7,17 +7,6 @@
 #
 # WS 20140119
 ################################################################################
-# Error count reset on good readings, faster awk, mail address as variable
-# WS20121115
-####
-# Configurable update frequency (TDIFF)
-# WS 20130329
-####
-# Arrays! More reliable input checks, sensor errors return now names
-# WS 20130120
-####
-# Added error count reset
-# WS 20130329
 
 ########### Configure here ###########
 # Sensor channels and names
@@ -26,7 +15,7 @@ CHANNELS[2]="study"
 CHANNELS[3]="sleeping room"
 
 # Mail address for error messages
-MAIL_ADD="nn@nn.nn"
+MAIL_ADD='nn@nn.nn'
 
 # Path to RRD and log file
 RRD=~/doc/weather/weather.rrd
@@ -34,18 +23,18 @@ LOG=~/doc/weather/${0##*/}.errlog
 
 ######### Configuration end ##########
 
-TDIFF=20       # Min. seconds between updates
-FIELDS_TOTAL=25	# Total no. of data fields
+TDIFF=20        # Min. seconds between updates
+FIELDS_TOTAL=25 # Total no. of data fields
 WAIT=10         # Send mail only on every n consecutive error
 ERRORCOUNT=0
-PLURAL=
-FIELDS_DIFF=
-PORT=
 DATE=0
 DATE_OLD=0
-declare -a FAILURES INPUT SENSORS DATA
+unset PLURAL PORT
+declare -a FAILURES INPUT DATA
 IFS=':'
 
+# We want to exit cleanly
+trap 'pkill socat' 0
 
 # Get USB port
 PORT=$(dmesg | awk '/cp210x converter now attached to tty/ {port=$NF} END {print "/dev/"port}')
@@ -59,10 +48,13 @@ fi
 
 # Send mail on errors
 send_mail_() {
-echo "$(date -d @$DATE '+%Y-%m-%d %H:%M:%S'): Error: $ERROR #${ERRORCOUNT}" | tee -a $LOG
-if [[ $ERRORCOUNT -lt $WAIT && $ERRORCOUNT -gt 1 ]]; then
+echo "$(date -d @$DATE '+%Y-%m-%d %H:%M:%S'): Error: $ERROR #${ERRORCOUNT}" | tee -a "$LOG"
+if [[ $ERROR_TMP -lt $WAIT ]]; then
 	return
 fi
+ERROR_TMP=0
+##TEMP
+return
 
 mail -s "Error on temperature reading" $MAIL_ADD<<END
 $(date -d @$DATE '+%Y-%m-%d %H:%M:%S')
@@ -71,29 +63,25 @@ $ERROR
 END
 
 if [[ $? -ne 0 ]]; then
-	echo "$(date '+%Y-%m-%d %H:%M:%S'): Error: could not send error mail" | tee -a $LOG
+	echo "$(date '+%Y-%m-%d %H:%M:%S'): Error: could not send error mail" | tee -a "$LOG"
 else
-	echo "$(date '+%Y-%m-%d %H:%M:%S'): Sent error mail" | tee -a $LOG
+	echo "$(date '+%Y-%m-%d %H:%M:%S'): Sent error mail" | tee -a "$LOG"
 fi
-ERROR=
+unset ERROR
 }
 
 CMD="socat ${PORT},b9600 STDOUT"
 
 # Connect to serial port
-eval $CMD | \
+eval "$CMD" | \
 while IFS=';' read -a INPUT; do
-	ERROR_TMP=0
 	DATE=$(date '+%s')
 	if [[ "$INPUT" != '$1' ]]; then
 		sleep 1
 		continue
 	fi
-	if [[ $[DATE - DATE_OLD] -lt $TDIFF ]]; then
-		continue
-	else
-		DATE_OLD=$DATE
-	fi
+	[[ $((DATE - DATE_OLD)) -lt $TDIFF ]] && continue
+	DATE_OLD=$DATE
 	# Check total number of fields
 	if [[ ${#INPUT[@]} -ne $FIELDS_TOTAL ]]; then
 		ERROR="Got ${#INPUT[@]} fields instead of ${FIELDS_TOTAL}."
@@ -104,8 +92,8 @@ while IFS=';' read -a INPUT; do
 	fi
 	# Cut first, second and last field
 	n=0
-	for n in $[${#INPUT[@]}-1] 0 1; do
-		unset INPUT[$n]
+	for n in $((${#INPUT[@]}-1)) 0 1; do
+		unset "INPUT[$n]"
 	done
 	DATA=("${INPUT[@]}")
 	DATA[0]=$DATE
@@ -114,7 +102,8 @@ while IFS=';' read -a INPUT; do
 	FAILURES=()
 	n=0
 	for n in ${!CHANNELS[*]}; do
-		if [[ -z "${DATA[$n]}" || -z "${DATA[$[n+8]]}" ]]; then
+		if [[ -z "${DATA[$n]}" || -z "${DATA[$((n+8))]}" ]]; then
+			# Add capitalised location name to array
 			FAILURES[${#FAILURES[@]}]="${CHANNELS[$n]^}"
 		fi
 	done
@@ -122,7 +111,7 @@ while IFS=';' read -a INPUT; do
 		if [[ ${#FAILURES[@]} -gt 1 ]]; then
 			PLURAL="s"
 		else
-			PLURAL=
+			unset PLURAL
 		fi
 		ERROR="Sensor failure in ${#FAILURES[@]} location${PLURAL}: $(sed 's/'"$IFS"'/, /g'<<<"${FAILURES[*]^}")."
 		((ERRORCOUNT++))
@@ -131,23 +120,23 @@ while IFS=';' read -a INPUT; do
 	fi
 	# Replace unused fields with "U"
 	n=0
-	for VAR in ${DATA[@]}; do
+	for VAR in "${DATA[@]}"; do
 		[[ -z "$VAR" ]] && DATA[$n]="U"
 		((n++))
 	done
-	[[ "${DATA[-2]}" == "U" ]] && DATA[$[${#DATA[@]}-1]]="U"
-	echo "$(date -d @$DATE '+%Y-%m-%d %H:%M:%S'): ${DATA[*]}"
+	[[ "${DATA[-2]}" == "U" ]] && DATA[$((${#DATA[@]}-1))]="U"
+	echo "$(date -d "@$DATE" '+%Y-%m-%d %H:%M:%S'): ${DATA[*]}"
 	# Write to RRD file
-	if ! rrdtool update $RRD "${DATA[*]}" 2>>$LOG; then
-		echo "${DATA[*]}" >> $LOG
+	if ! rrdtool update "$RRD" "${DATA[*]}" 2>>"$LOG"; then
+		echo "${DATA[*]}" >> "$LOG"
 		((ERRORCOUNT++))
 		((ERROR_TMP++))
 		ERROR="Could not update $RRD"
 		send_mail_
 		continue
 	fi
-	[[ $ERROR_TMP -eq 0 ]] && ERRORCOUNT=0
+	# Reset error counter on successful run
+	[[ $ERROR_TMP == 0 ]] && ERRORCOUNT=0
 done
 
 # EOF
-
