@@ -7,18 +7,6 @@
 #
 # WS 20100101
 ############################################################
-#### Changes ####
-####
-# Excluded database "information_schema"
-# WS 20100908
-####
-# Errors are printed to stderr now
-# WS 20110407
-####
-# sh -> bash, no need for temporary file
-# WS 20111013
-####
-
 
 ########### Configure here ###########
 BACKUPDIR=/var/lib/mysql/backup
@@ -35,7 +23,7 @@ trap 'exit 3' 1 2 3 15
 usage() {
 cat <<END
 
-"${0##*/}" dumps all MySQL databases to separate files in $BACKUPDIR
+${0##*/} dumps all MySQL databases to separate files in $BACKUPDIR
 
 Usage: ${0##*/} <database_user>
 
@@ -50,14 +38,14 @@ if [[ $# != 1 ]]; then
 fi
 
 # Test if database is accessible
-if ! DATABASES=$(mysql -u $DB_USER <<<"show databases" 2>/dev/null | egrep -v 'Database|information_schema' 2>/dev/null); then
+if ! DATABASES=$(mysql -u "$DB_USER" <<<"show databases" 2>/dev/null | egrep -v 'Database|information_schema' 2>/dev/null); then
 	echo "Could not access MySQL databases" >&2
 	exit 1
 fi
 
 # Dump databases to individual files
 for DB in $DATABASES; do
-	if ! (mysqldump -u $DB_USER $DB > ${BACKUPDIR}/${DB}.sql) 2>/dev/null; then
+	if ! (mysqldump -u "$DB_USER" "$DB" > "${BACKUPDIR}/${DB}.sql") 2>/dev/null; then
 		((RC++))
 		DB_ERR="${DB_ERR}${DB}\n"
 	fi

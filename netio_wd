@@ -6,13 +6,6 @@
 #
 # WS 20110317
 ############################################################
-######## Changes ########
-# Script now prints only status and errors, not the whole
-# telnet chatter, improved error handling, error messages are
-# send to stderr.
-# WS 20110410
-####
-
 
 ########### Configure here ###########
 # Device address

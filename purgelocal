@@ -7,23 +7,15 @@
 #
 # WS 20091125
 ############################################################
-########## Changes ##########
-####
-# Errors are printed to stderr now
-# WS 20110408
-####
-# Excluded currency directory
-# WS 20110422
-####
 
 dir=/usr/share/locale
 
-if [ ! -d $dir ]; then
+if [ ! -d "$dir" ]; then
 	echo "Could not find /usr/share/locale" 1>&2
 	exit 1
 fi
 
-cd $dir
+cd "$dir"
 
 size_1=`du -s -b | awk '{print $1}'`
 rc=0
@@ -46,6 +38,6 @@ fi
 
 echo "$diff MB freed"
 
-exit $rc
+exit "$rc"
 
 # EOF

@@ -6,15 +6,9 @@
 #
 # WS 20110216
 ###############################################################
-########## Changes ##########
-####
-# Added quotes to $output/$input so that filenames with blanks
-# can be handled
-# WS 20110715
-####
 
-input=$1
-rc=0
+INPUT=$1
+RC=0
 
 usage () {
 cat << END
@@ -37,46 +31,46 @@ if ! command -v gs &> /dev/null; then
 fi
 
 # Do we have a file name?
-if [[ -z "$input" ]]; then
+if [[ -z "$INPUT" ]]; then
 	usage >&2
 	exit 1
 
 fi
 
 # Does the file exist?
-if [[ ! -r "$input" ]]; then
+if [[ ! -r "$INPUT" ]]; then
 	echo "Error: Could not find PDF file ${input}." >&2
 	exit 1
 fi
 
 # Is the file a PDF document?
-if ! file "$input" 2> /dev/null | grep -q "PDF document" &> /dev/null; then
-	echo "Error: $input is not a PDF document." >&2
+if ! file "$INPUT" 2> /dev/null | grep -q "PDF document" &> /dev/null; then
+	echo "Error: $INPUT is not a PDF document." >&2
 	usage >&2
 	exit 1
 fi
 
 # Setting target file name
-output="$(sed 's/\.[pP][dD][fF]$/_unlocked.pdf/' <<<$input)"
-if [[ -z "$output" || "$output" == "$input" ]]; then
+OUTPUT="$(sed 's/\.[pP][dD][fF]$/_unlocked.pdf/' <<<"$INPUT")"
+if [[ -z "$OUTPUT" || "$OUTPUT" == "$INPUT" ]]; then
 	echo "Error: Could not set output file name." >&2
 	exit 1
 fi
 
 # We'll remove the output file if the progam is aborted
-trap 'rm -rf "${output}" &> /dev/null; echo "Programm aborted" >&2; exit 99' 1 2 3 15
+trap 'rm -rf "${OUTPUT}" &> /dev/null; echo "Programm aborted" >&2; exit 99' 1 2 3 15
 
 #### Here we go
-echo -n "Writing to ${output}... "
-gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sPDFPassword="" -dPDFSETTINGS=/prepress -dPassThroughJPEGImages=true -sOutputFile="$output" "$input" 2>/dev/null
-rc=$?
+echo -n "Writing to ${OUTPUT}... "
+gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sPDFPassword="" -dPDFSETTINGS=/prepress -dPassThroughJPEGImages=true -sOutputFile="$OUTPUT" "$INPUT" 2>/dev/null
+RC=$?
 
-if [[ $rc = 0 ]]; then
+if [[ $RC = 0 ]]; then
 	echo "...done."
 else
-	echo "...done with errors. Please check ${output}."
+	echo "...done with errors. Please check ${OUTPUT}."
 fi
 
-exit $rc
+exit $RC
 
 # EOF

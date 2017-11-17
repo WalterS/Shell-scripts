@@ -7,18 +7,6 @@
 #
 # WS 20110216
 ############################################################
-########## Changes ##########
-####
-# Added editing capability
-# WS 20110305
-####
-# Added error statement on exit and colourised messages
-# WS 20110311
-####
-# Added root check
-# WS 20110417
-####
-
 
 # Make sure we're run by root
 if [[ "$(id -u)" != "0" ]]; then
@@ -44,7 +32,7 @@ target_temp_mb=
 
 
 cleanup () {
-rm -f $temp &>/dev/null
+rm -f "$temp" &>/dev/null
 }
 
 # Always exit cleanly
@@ -52,18 +40,16 @@ trap 'cleanup' 0
 trap 'cleanup; exit 2' 1 2 3 15
 
 # Get OIDs
-if snmpwalk -O n -v 2c -c public localhost .1.3.6.1.4.1.2021.13.16 > $temp 2> /dev/null; then
-	:
-else
-	echo -e "\e[01;31m`basename $0`: Could not perform snmpwalk\e[00m"
+if ! snmpwalk -O n -v 2c -c public localhost .1.3.6.1.4.1.2021.13.16 > "$temp" 2> /dev/null; then
+	echo -e "\e[01;31m${0##*/}: Could not perform snmpwalk\e[00m"
 	exit 1
 fi
 
 i=0
 for item in ${items[*]}; do
 	# Find OID and change from index to value
-	oids[${i}]=$(awk -F'\\\\.| =' '/'"$item"'/ {$(NF-2)=$(NF-2)+1; { for (i = 2; i < NF; ++i) printf "."$i }}' $temp)
-	oid_temp=$(sed 's/\./\\./g' <<<$oids[${i}])
+	oids[${i}]=$(awk -F'\\\\.| =' '/'"$item"'/ {$(NF-2)=$(NF-2)+1; { for (i = 2; i < NF; ++i) printf "."$i }}' "$temp")
+	oid_temp=$(sed 's/\./\\./g' <<<"${oids[$i]}")
 
 	# Search for OID in mrtg.cfg
 	if [[ -z "$(awk '/'"${mrtg_key[${i}]}"'/ && /'"${oid_temp}"'/ && /@/ && ! /^#/' $mrtg_cfg)" ]]; then
@@ -79,7 +65,7 @@ done
 
 
 if [ $found_errors -gt 0 ]; then
-	echo -e "\e[01;32mErrors found, correcting, please check $mrtg_cfg\e[00m"
+	echo -e "\e[01;33mErrors found, correcting, please check $mrtg_cfg\e[00m"
 	# Build target lines for MRTG
 	target_fans="Target[fans]: ${oids[0]}\\&${oids[1]}:Mupfel@127.0.0.1"
 	target_cpu_temp="Target[cpu_temp]: ${oids[2]}\\&${oids[2]}:Mupfel@127.0.0.1"
@@ -97,7 +83,7 @@ else
 fi
 
 if [[ $rc -gt 0 ]]; then
-	echo -e "\e[01;32m$(basename $0) exited with errors\e[00m"
+	echo -e "\e[01;31m${0##*/} exited with errors\e[00m"
 	rc=1
 fi
 

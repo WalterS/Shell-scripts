@@ -14,7 +14,7 @@ MY_NAME=${0##*/}
 IFS=$'\n'
 unalias -a
 for VAR in $(env | awk -F= 'BEGIN {IGNORECASE=1} ! /^(path|user|home|display|ifs)/ {print $1}'); do
-	unset $VAR &>/dev/null
+	unset "$VAR" &>/dev/null
 done
 unset IFS VAR
 
@@ -31,13 +31,13 @@ cat <<END
 $MY_NAME prints overall CPU load in percent for mrtg
 
 Parameters: -c|--community
-               snmp v2c community string
+               SNMP v2c community string
             -s|--server
-              target host, use IP address or FQDN
+              Target host, use IP address or FQDN
             -n|--name
               Display different name (optional)
             -h|--help
-              this help text
+              This help text
 
 Example:    $MY_NAME -c public -s host.example.com
 
@@ -47,7 +47,7 @@ END
 # Check input
 OPTIONS_LONG="community:,server:,name:,help"
 OPTIONS_SHORT="c:,s:,n:,h"
-if ! PARSED_OPTIONS=$(getopt -n $MY_NAME -o "$OPTIONS_SHORT" -l "$OPTIONS_LONG" -- "$@"); then
+if ! PARSED_OPTIONS=$(getopt -n "$MY_NAME" -o "$OPTIONS_SHORT" -l "$OPTIONS_LONG" -- "$@"); then
 	echo "Error: Wrong or missing option" >&2
 	usage >&2
 	exit 2
@@ -86,13 +86,13 @@ exit 1
 
 # Only one connection to target host
 IFS=$'\n'
-if ! SNMP_ALL=( $(snmpbulkget -v 2c -c $COMMUNITY -Osn $HOST $SNMP_PROCS $SNMP_UPTIME) ); then
+if ! SNMP_ALL=( $(snmpbulkget -v 2c -c "$COMMUNITY" -Osn "$HOST" "$SNMP_PROCS" "$SNMP_UPTIME") ); then
 	echo "Error: SNMP connect failed" >&2
 	exit 1
 fi
 
 # Parse SNMP response
-for LINE in ${SNMP_ALL[@]}; do
+for LINE in "${SNMP_ALL[@]}"; do
 	case $LINE in
 		${SNMP_PROCS}.*)
 			(( PROC_NUM++ ))

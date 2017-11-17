@@ -8,12 +8,6 @@
 #
 # WS 20110702
 ############################################################
-########## Changes ##########
-####
-# Added root check, removed service restart
-# WS 20111013
-####
-
 
 ########### Configure here ###########
 # Limit for time deviation
@@ -22,7 +16,6 @@ delta_max=300
 server=0.de.pool.ntp.org
 ######### Configuration end ##########
 
-rc=0
 delta=
 
 if [[ "$(id -u)" != 0 ]]; then

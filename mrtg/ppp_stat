@@ -16,14 +16,6 @@
 #
 # WS 20100224
 ################################################################################
-########## Changes ##########
-####
-# Minor improvements
-# WS 20110415
-####
-# Moved external operations to internal operations
-# WS 2011116
-####
 
 RC=0
 RESULT=
@@ -55,13 +47,13 @@ if [[ $D = 1 ]]; then
 fi
 
 T=$((T%86400))
-H=$(($T/3600))
+H=$((T/3600))
 if [[ $H = 1 ]]; then
         HOUR=hour
 fi
 
 T=$((T%3600))
-M=$(($T/60))
+M=$((T/60))
 if [[ $M = 1 ]]; then
         MIN=minute
 fi
@@ -75,7 +67,7 @@ RESULT=$($AWK '/'"$INTERFACE"'/ {print $2,$10}' /proc/net/dev)
 # Check for errors
 if [[ -n "$RESULT" ]]; then
 	if [[ ${RESULT} =~ ^[0-9]+\ +[0-9]+$ ]]; then
-		echo -e ${RESULT// /\\n}
+		echo -e "${RESULT// /\\n}"
 		uptm
 	else
 		echo -e "0\n0\nError: Something is wrong with the result ($RESULT), I expected two integers"

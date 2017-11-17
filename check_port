@@ -2,27 +2,11 @@
 
 ################################################################################
 # check_port
-# 
+#
 # Checks if a given TCP/UDP port is open using Bash sockets
 #
 # WS 20110823
 ################################################################################
-########## Changes ##########
-# Added test for port range, fixed identation
-# WS 20110823
-####
-# Removed root test, improved error handling
-# WS 20110824
-####
-# Redundant echo statements pruned
-# WS 20111016
-####
-# Replaced grep by [[
-# WS 20111020
-####
-# Added default values and long options
-# WS 20130221
-####
 
 MY_NAME=${0##*/}
 PORT=22
@@ -52,7 +36,7 @@ END
 # Check input
 # Get command line options
 OPTIONS_LONG="help,host:,protocol:,port:"
-OPTIONS_SHORT="hH:p:s:"
+OPTIONS_SHORT="h:p:s:"
 if ! PARSED_OPTIONS=$(getopt -qn "$0" -o "$OPTIONS_SHORT" -l "$OPTIONS_LONG" -- "$@"); then
 	echo "Error: Invalid option"
 	usage >&2
@@ -62,15 +46,15 @@ OPTERR=0
 eval set -- "$PARSED_OPTIONS"
 
 while [[ $# -ge 1 ]]; do
-        case $1 in
-		-h|--help)
+	case $1 in
+		--help)
 			usage
 			exit 0 ;;
-		-H|--host)
+		-h|--host)
 			HOST="$2"; shift ;;
 		-p|--port)
 			PORT="$2"; shift ;;
-		-t|--protocol)	PROTO=$(tr [[:upper:]] [[:lower:]] <<<"$2")
+		-t|--protocol)	PROTO=$(tr '[:upper:]' '[:lower:]' <<<"$2")
 			if [[ "$PROTO" != "tcp" && "$PROTO" != "udp" ]]; then
 				echo "Error: Invalid protocol, either specify \"tcp\" or \"udp\"" >&2
 				usage >&2
@@ -95,7 +79,7 @@ fi
 
 
 # Remove trailing blanks
-PORT=$(echo $PORT)
+PORT=$(echo "$PORT")
 # Only numbers, blanks and hyphen allowed
 if [[ ! $PORT =~ ^([1-9]+( |-)?)*[0-9]+$ ]]; then
 	echo "Error: Only numbers, blanks and hyphen allowed in port value" >&2
@@ -134,11 +118,11 @@ else
 fi
 
 #### Here we go
-PROTO_DISPLAY=$(tr [[:lower:]] [[:upper:]] <<<"$PROTO")
+PROTO_DISPLAY=$(tr '[:lower:]' '[:upper:]' <<<"$PROTO")
 # Only with eval we're able to use range argument in variable
-for P in $(eval echo $PORT_LIST); do
+for P in $(eval echo "$PORT_LIST"); do
 
-	if (echo >/dev/tcp/${HOST}/$P) &>/dev/null; then
+	if (echo >"/dev/tcp/${HOST}/$P") &>/dev/null; then
 		echo "$PROTO_DISPLAY port $P on $HOST is open"
 	else
 		echo "$PROTO_DISPLAY port $P on $HOST is closed"

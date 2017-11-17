@@ -7,18 +7,6 @@
 # 
 # WS 20050507
 ##################################################
-########## Changes ##########
-####
-# Pruned unnecessary "wc", improved error handling
-# WS 20110414
-####
-# sh -> bash, cleared awk expression
-# WS 20111013
-####
-# Fixed: No abort on no file found
-# WS 20111015
-####
-
 
 usage() {
 cat <<END
