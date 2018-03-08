@@ -15,6 +15,7 @@ require 'time'
 # Set default logger options
 logger = Logger.new(STDOUT)
 logger.formatter = proc { |severity, _datetime, _progname, msg| "#{severity.capitalize}: #{msg}\n" }
+logger.level = Logger::WARN
 
 # Parse command-line options and/or configuration file
 options = {}
@@ -28,7 +29,8 @@ args = OptionParser.new do |opts|
   opts.on('-D', '--[no-]debug', 'Print debug output, default: false)') { |v| options[:debug] = v }
   opts.on('-v', '--[no-]verbose', 'Print verbose output, default: false)') { |v| options[:verbose] = v }
   opts.on('-d', '--directory DIRECTORY', 'Target directory') { |v| options[:directory] = File.expand_path(v) }
-  opts.on('-l', '--logfile LOG_FILE', 'Log file') { |v| options[:logfile] = File.expand_path(v) }
+  opts.on('-l', '--[no-]log', 'Log to file') { |v| options[:log] = v }
+  opts.on('-L', '--logdir', 'Log directory (default: target directory)') { |v| options[:logdir] = File.expand_path(v) }
 end
 
 # Print help on error
@@ -38,19 +40,29 @@ rescue OptionParser::InvalidOption => e
   exit 1
 end
 
-# Add time to log when logging to file
-unless options[:logfile].nil?
-  logger = Logger.new(options[:logfile])
-  logger.formatter = proc { |severity, datetime, _progname, msg| "#{datetime} #{severity.capitalize}: #{msg}\n" }
+options[:directory] ||= '/tmp'
+unless Dir.exist?(options[:directory])
+  logger.fatal('Target directory "' + options[:directory] + ' does not exist')
+  exit 1
 end
 
-logger.level = Logger::WARN
+if options[:log]
+  options[:logdir] ||= options[:directory]
+  logger = Logger.new(File.join(options[:logdir], File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)) + '.log'))
+  # Add time to log when logging to file
+  logger.formatter = proc { |severity, datetime, _progname, msg| "#{datetime} #{severity.capitalize}: #{msg}\n" }
+  options[:verbose] = true
+  logger.level = Logger::INFO
+end
 
 logger.level = Logger::INFO if options[:verbose]
-logger.level = Logger::DEBUG if options[:debug]
-options[:directory] ||= '/tmp'
 
-logger.debug('############ Starting with options: ' + options.inspect)
+if options[:debug]
+  logger.level = Logger::DEBUG
+  logger.debug('############ Starting with options: ' + options.inspect)
+else
+  logger.info('############ Starting program')
+end
 
 %w[
   http://www.yr.no/satellitt/europa.html
@@ -89,6 +101,7 @@ logger.debug('############ Starting with options: ' + options.inspect)
     logger.debug('HTTP response code: ' + response.code)
     logger.debug('First letters of response: ' + response.body[1..3])
     unless response.code =~ /^4/ || response.body[1..3] != 'PNG'
+      logger.info('Downloaded ' + file_name)
       File.open(file_name, 'w+b') { |file| file.write(response.body) }
 
       exif_writer = MultiExiftool::Writer.new
