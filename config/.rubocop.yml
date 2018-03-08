@@ -1,0 +1,52 @@
+# Basic Rubocop rules
+
+# ABC size
+Metrics/AbcSize:
+  Max: 50
+
+Metrics/BlockLength:
+  Max: 50
+
+Metrics/ClassLength:
+  Max: 1500
+
+Metrics/ModuleLength:
+  Max: 1500
+
+Metrics/CyclomaticComplexity:
+  Max: 12
+
+Metrics/PerceivedComplexity:
+  Max: 12
+
+# Configuration parameters: AllowURI, URISchemes.
+Metrics/LineLength:
+  Max: 160
+
+# Configuration parameters: CountComments.
+Metrics/MethodLength:
+  Max: 32
+
+# Configuration parameters: CountKeywordArgs.
+Metrics/ParameterLists:
+  Max: 12
+
+# Exclusions for Cucumber test scripts
+Lint/AmbiguousRegexpLiteral:
+  Exclude:
+    - '/**/test_steps.rb'
+
+# This produces false warnings when using "lazy" in Chef (v0.48.1)
+Lint/AmbiguousBlockAssociation:
+  Enabled: false
+
+# Maintain compatibility between Ruby < v2.3 and latest version
+Layout/IndentHeredoc:
+  Enabled: false
+
+Style/FormatStringToken:
+  Enabled: false
+
+# For Ruby 1.9 (Chef 11)
+Style/SymbolArray:
+  EnforcedStyle: brackets
