@@ -3,49 +3,54 @@
 ##################################################
 # countlines
 #
-# Count code lines in shell scripts
-# 
-# WS 20050507
+# Count code lines in scripts
 ##################################################
+
+RC=0
 
 usage() {
 cat <<END
 
 "${0##*/}" counts code lines in a given script
 
-Usage: ${0##*/} <script_file>
+Usage: ${0##*/} <script_file>[ <script_file1> ...]
 
 END
 }
 
 # Error handling
-if [[ $# != 1 ]]; then
-	echo "No or to many parameters" >&2
-	usage >&2
-	exit 2
-else
-	FILE=$1
-fi
-
-if [[ ! -f "$FILE" ]]; then
-	echo "Could not find \"${FILE}\"" >&2
+if [[ $# -le 1 ]]; then
+	echo "No file name given" >&2
 	usage >&2
 	exit 1
 fi
 
 ## Here we go
 # Count all lines
-ALLINES=$(wc -l $FILE | cut -d' ' -f 1)
-# Count only non-empty lines not beginning with "#"
-CODELINES=$(awk 'BEGIN {n=0} !/^[[:space:]]*$/ && !/^[[:space:]]*#/ {n++} END {print n}' $FILE) 2> /dev/null
+for FILE in "$@"; do
+	if [[ ! -f "$FILE" ]]; then
+		echo "Could not find \"${FILE}\"" >&2
+		((RC+1))
+		continue
+	fi
+	ALLINES=$(wc -l "$FILE" | cut -d' ' -f 1)
+	# Count only non-empty lines not beginning with "#"
+	CODELINES=$(awk 'BEGIN {n=0} !/^[[:blank:]]*$/ && !/^[[:blank:]]*#/ {n++} END {print n}' "$FILE") 2> /dev/null
 
-if [[ -z "$CODELINES" || $CODELINES -le 0 ]]; then
-	echo "Could not find any code line in $FILE" >&2
-	exit 1
-fi
+	if [[ -z "$CODELINES" || $CODELINES -le 0 ]]; then
+		echo "Could not find any code line in $FILE" >&2
+		((RC+1))
+		continue
+	fi
 
-echo "The script \"$FILE\" has $ALLINES lines from which $CODELINES lines are code"
+	# Count all non-blank characters
+	CHARS=$(awk '!/^[[:blank:]]*$/ && !/^[[:blank:]]*#/ {gsub(/[[:blank:]]+/,"");printf "%s",$0}' "$FILE" |wc -m)
 
-exit 0
+	echo "\"$FILE\" has $ALLINES lines from which $CODELINES lines are code ($CHARS characters)"
+done
+
+[[ $RC -gt 1 ]] && RC=1
+
+exit $RC
 
 # EOF
