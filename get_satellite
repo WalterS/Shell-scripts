@@ -1,0 +1,106 @@
+#!/bin/env ruby
+
+################################################################################
+# get_satellite
+#
+# Get the most recent satellite picture from yr.no
+################################################################################
+
+require 'logger'
+require 'multi_exiftool'
+require 'net/http'
+require 'optparse'
+require 'time'
+
+# Set default logger options
+logger = Logger.new(STDOUT)
+logger.formatter = proc { |severity, _datetime, _progname, msg| "#{severity.capitalize}: #{msg}\n" }
+
+# Parse command-line options and/or configuration file
+options = {}
+
+args = OptionParser.new do |opts|
+  opts.banner = "Usage: #{File.basename($PROGRAM_NAME)} [options]"
+  opts.on('-h', '--help', 'Show help') do
+    puts opts
+    exit
+  end
+  opts.on('-D', '--[no-]debug', 'Print debug output, default: false)') { |v| options[:debug] = v }
+  opts.on('-v', '--[no-]verbose', 'Print verbose output, default: false)') { |v| options[:verbose] = v }
+  opts.on('-d', '--directory DIRECTORY', 'Target directory') { |v| options[:directory] = File.expand_path(v) }
+  opts.on('-l', '--logfile LOG_FILE', 'Log file') { |v| options[:logfile] = File.expand_path(v) }
+end
+
+# Print help on error
+begin args.parse!
+rescue OptionParser::InvalidOption => e
+  logger.error(e.message.capitalize)
+  exit 1
+end
+
+# Add time to log when logging to file
+unless options[:logfile].nil?
+  logger = Logger.new(options[:logfile])
+  logger.formatter = proc { |severity, datetime, _progname, msg| "#{datetime} #{severity.capitalize}: #{msg}\n" }
+end
+
+logger.level = Logger::WARN
+
+logger.level = Logger::INFO if options[:verbose]
+logger.level = Logger::DEBUG if options[:debug]
+options[:directory] ||= '/tmp'
+
+logger.debug('############ Starting with options: ' + options.inspect)
+
+%w[
+  http://www.yr.no/satellitt/europa.html
+  http://www.yr.no/satellitt/europa_dag_natt.html
+].each do |site|
+  logger.info('Using site ' + site)
+  file_name = "satellite_#{site.split(%r{/|\.})[-2]}.png"
+  file_name = File.join(File.expand_path(options[:directory]), file_name)
+  logger.debug('Target file: ' + file_name)
+  search_string = 'proxy.*;area=europe.*size=normal'
+  uri_portal = URI(site)
+  portal_body = Net::HTTP.get(URI(site)).split(/\n+/)
+  url_string_raw = portal_body.grep(/#{search_string}/).first
+  url_string = url_string_raw.split('"').grep(/#{search_string}/).first
+  url_string.gsub!('&amp;', '&')
+  uri_picture = URI(File.join('http://' + uri_portal.host, url_string))
+  logger.debug('Image URL: ' + uri_picture.to_s)
+  timestring = url_string.split('&').grep(/^time/).first.split('=').last
+  time_url = Time.parse(timestring)
+  logger.debug('Time from picture URL: ' + time_url.localtime.to_s)
+  exif_reader = MultiExiftool::Reader.new
+  exif_reader.filenames = file_name
+  begin
+    time_file = exif_reader.read.first.datetimeoriginal
+  rescue NoMethodError
+    time_file = ''
+  end
+  logger.debug('Time from existing image: ' + time_file.to_s)
+  if time_file == time_url
+    logger.info('No new image available') unless time_file != time_url
+    next
+  end
+  Net::HTTP.start(uri_picture.host, uri_picture.port) do |http|
+    response = http.get(uri_picture.request_uri.to_s)
+    response.body[1..3]
+    logger.debug('HTTP response code: ' + response.code)
+    logger.debug('First letters of response: ' + response.body[1..3])
+    unless response.code =~ /^4/ || response.body[1..3] != 'PNG'
+      File.open(file_name, 'w+b') { |file| file.write(response.body) }
+
+      exif_writer = MultiExiftool::Writer.new
+      exif_writer.filenames = file_name
+      exif_writer.overwrite_original = true
+      exif_writer.values = {
+        filemodifydate: time_url.localtime.to_s,
+        datetimeoriginal: time_url.to_s,
+        gpstimestamp: (time_url.localtime - time_url.utc_offset).strftime('%H:%M'),
+        comment: timestring
+      }
+      logger.warn('Error when writing Exif tags to ' + file_name + ': ' + exif_writer.errors.join("\n")) unless exif_writer.write
+    end
+  end
+end
