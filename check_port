@@ -12,7 +12,6 @@ MY_NAME=${0##*/}
 PORT=22
 HOST=127.0.0.1
 PROTO=tcp
-PROTO_DISPLAY=
 RC=0
 
 usage () {
@@ -54,7 +53,7 @@ while [[ $# -ge 1 ]]; do
 			HOST="$2"; shift ;;
 		-p|--port)
 			PORT="$2"; shift ;;
-		-t|--protocol)	PROTO=$(tr '[:upper:]' '[:lower:]' <<<"$2")
+		-t|--protocol)	PROTO=${2,,}
 			if [[ "$PROTO" != "tcp" && "$PROTO" != "udp" ]]; then
 				echo "Error: Invalid protocol, either specify \"tcp\" or \"udp\"" >&2
 				usage >&2
@@ -79,9 +78,11 @@ fi
 
 
 # Remove trailing blanks
-PORT=$(echo "$PORT")
+# shellcheck disable=SC2116
+# shellcheck disable=SC2086
+PORT=$(echo $PORT)
 # Only numbers, blanks and hyphen allowed
-if [[ ! $PORT =~ ^([1-9]+( |-)?)*[0-9]+$ ]]; then
+if [[ ! $PORT =~ ^([1-9][0-9]*( |-)?)*[0-9]+$ ]]; then
 	echo "Error: Only numbers, blanks and hyphen allowed in port value" >&2
 	usage >&2
 	exit 2
@@ -105,27 +106,22 @@ fi
 
 # Second value in port range has to be greater than first value
 if [[ $PORT =~ - ]]; then
-	if ! awk -F'-' '{if ($1>=$2) exit 2}' &> /dev/null <<<"$PORT"; then
+	if ((${PORT##*-} < ${PORT%%-*})); then
 		echo "Error: First value in port range is greater or equal than second value" >&2
 		usage >&2
 		exit 2
 	else
-		# Build list argument
-		PORT_LIST=$(awk -F'-' '{print "{"$1".."$2"}"}' <<<"$PORT")
+		PORT=$(seq "${PORT%%-*}" "${PORT##*-}")
 	fi
-else
-	PORT_LIST="$PORT"
 fi
 
 #### Here we go
-PROTO_DISPLAY=$(tr '[:lower:]' '[:upper:]' <<<"$PROTO")
-# Only with eval we're able to use range argument in variable
-for P in $(eval echo "$PORT_LIST"); do
+for P in $PORT; do
 
 	if (echo >"/dev/tcp/${HOST}/$P") &>/dev/null; then
-		echo "$PROTO_DISPLAY port $P on $HOST is open"
+		echo "${PROTO^^} port $P on $HOST is open"
 	else
-		echo "$PROTO_DISPLAY port $P on $HOST is closed"
+		echo "${PROTO^^} port $P on $HOST is closed"
 		RC=1
 	fi
 
