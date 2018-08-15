@@ -19,7 +19,9 @@ cat <<END
 
 $MY_NAME checks for open TCP/UDP ports
 Usage:      $MY_NAME -H <hostname> -p <port_number> -t [tcp|udp]
-Parameters: -H|--host
+Parameters: --help
+               This help message             
+            -h|--host
                Host name or IP address (default: 127.0.0.1)
             -p|--port
                Either a single port, a list with blanks as delimiters or a range in the format "n-n" (default: 22)
@@ -35,7 +37,7 @@ END
 # Check input
 # Get command line options
 OPTIONS_LONG="help,host:,protocol:,port:"
-OPTIONS_SHORT="h:p:s:"
+OPTIONS_SHORT="h:p:t:"
 if ! PARSED_OPTIONS=$(getopt -qn "$0" -o "$OPTIONS_SHORT" -l "$OPTIONS_LONG" -- "$@"); then
 	echo "Error: Invalid option"
 	usage >&2
