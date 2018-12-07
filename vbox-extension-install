@@ -13,27 +13,27 @@ BASEADDRESS='http://download.virtualbox.org/virtualbox'
 
 # Prefix commands with sudo if not root
 if [ "$(id -u)" != "0" ]; then
-    CMD='sudo'
+  CMD='sudo'
 fi
 
 unset EXTENSION PACKAGE VERSION
 
 # We want to exit cleanly
-trap '(rm "/tmp/$EXTENSION") &>/dev/null' 0
+trap 'rm "/tmp/$EXTENSION" &>/dev/null' 0
 
 # Get package name, check if VirtualBox is installed
 PACKAGE=$(rpm -qa|grep -si virtualbox)
 if [[ -z "$PACKAGE" ]]; then
-	echo "Error: VirtualBox is not installed" >&2
-	exit 1
+  echo "Error: VirtualBox is not installed" >&2
+  exit 1
 fi
 
 # Get local version string
 VERSION_VB=$(rpm -q "$PACKAGE" --queryformat '%{VERSION}')
 VERSION_VB=${VERSION_VB%%_*}
 if [[ -z "$VERSION_VB" || ! $VERSION_VB =~ ^[0-9] ]]; then
-	echo "Error: Could not determine VirtualBox version (got \"$VERSION\")" >&2
-	exit 1
+  echo "Error: Could not determine VirtualBox version (got \"$VERSION\")" >&2
+  exit 1
 fi
 
 # Get installed extpack version
@@ -42,8 +42,8 @@ VERSION_CURRENT=$($CMD VBoxManage list extpacks|awk 'BEGIN {n=0}/^(Version|Revis
 # Get extension file name
 EXTENSION="$(wget -qO- "${BASEADDRESS}/$VERSION_VB" 2>/dev/null|awk -F'[>|<]' '/([0-9]+-[0-9]+).*-extpack/ {print $(NF-2);exit}')"
 if [[ -z "$EXTENSION" ]]; then
-	echo "Error: Could not get download link for extension pack from ${BASEADDRESS}/$VERSION_VB" >&2
-	exit 1
+  echo "Error: Could not get download link for extension pack from ${BASEADDRESS}/$VERSION_VB" >&2
+  exit 1
 fi
 
 # Get remote version string
@@ -51,22 +51,24 @@ VERSION_REMOTE=$(awk -F- '{gsub(/[^0-9]/,"",$3);print $2"-"$3}'<<<"$EXTENSION")
 
 # Only continue if remote and local version differ
 if [[ "$VERSION_CURRENT" == "$VERSION_REMOTE" ]]; then
-	echo "Locally installed version $VERSION_CURRENT is still current, nothing to do"
-	exit
+  echo "Locally installed version $VERSION_CURRENT is still current, nothing to do"
+  exit
 fi
 
 # Download extension pack
 if ! wget -qP /tmp "${BASEADDRESS}/${VERSION_VB}/$EXTENSION"; then
-	echo "Error: Could not download extension pack from ${BASEADDRESS}/${VERSION_VB}/$EXTENSION" >&2
-	exit 1
+  echo "Error: Could not download extension pack from ${BASEADDRESS}/${VERSION_VB}/$EXTENSION" >&2
+  exit 1
 fi
 
 # Extract licence hash
 HASH=$(tar -Oxzf "/tmp/$EXTENSION" ./ExtPack.manifest|awk '/^SHA256 .*license.txt)/ {print $NF}')
 # --accept-license=b674970f720eb020ad18926a9268607089cc1703908696d24a04aa870f34c8e8
-if ! $CMD VBoxManage extpack install --replace "/tmp/$EXTENSION" --accept-license="$HASH"; then
-	echo 'Error: Could not install extension pack' >&2
-	exit 1
+if $CMD VBoxManage extpack install --replace "/tmp/$EXTENSION" --accept-license="$HASH"; then
+  echo "Installed extension pack $VERSION_REMOTE"
+else
+  echo "Error: Could not install extension pack $VERSION_REMOTE" >&2
+  exit 1
 fi
 
 # Remove up any old version in VirtualBox
