@@ -1,0 +1,27 @@
+[user]
+	email = email
+	name = name
+[push]
+	default = simple
+#[http]
+#  sslverify = false
+[apply]
+  whitespace = nowarn
+[gc]
+  auto = 1
+[core]
+  autocrlf = input
+[color]
+  ui = auto
+[alias]
+  alias = "!f() { git config $1 --get-regexp '^alias\\.'|sed 's/^alias.//;s/ /: /'|sort; }; f"
+  cr = clone --recursive
+  force = "!f() { if [[ $(git --version|awk -F' +|\\\\.' '{print $3}') == 1 ]]; then echo "git push -f"; else echo "git push --force-with-lease"; fi; }; f"
+  fetch = fetch --prune
+  lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+  p = pull --prune
+  pr = pull --recurse-submodules --prune
+  refresh = "!git reset -q --hard $(git rev-list --max-parents=0 HEAD|tail -1) && git pull --prune"
+  # reset hard; if no number given, reset to first commit
+  rh = "!f() { if [[ -n \"$1\" ]]; then R=\"HEAD~$1\"; else R=\"$(git rev-list --max-parents=0 HEAD|tail -1)\";fi;git reset -q --hard $R; }; f"
+  sm = submodule update --init --recursive
