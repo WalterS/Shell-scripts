@@ -19,7 +19,7 @@ END
 }
 
 # Error handling
-if [[ $# -le 1 ]]; then
+if [[ $# -lt 1 ]]; then
 	echo "No file name given" >&2
 	usage >&2
 	exit 1
