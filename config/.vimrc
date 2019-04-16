@@ -1,14 +1,19 @@
 syntax on
+filetype on
+filetype plugin on
 colorscheme default
+set encoding=utf-8
+set nocompatible
 set formatoptions-=cro
-set shiftwidth=4
-set tabstop=4
 set hlsearch
+set incsearch
 set ai
 set ignorecase
 set smartcase
 set ruler
-autocmd Filetype ruby setlocal ts=2 sw=2 expandtab
-autocmd FileType yaml setlocal ts=2 sts=2 sw=2 expandtab
-autocmd Filetype bash setlocal ts=4 sw=4 noexpandtab
-autocmd Filetype *.sh setlocal ts=4 sw=4 noexpandtab
+set ts=2 sts=2 sw=2 expandtab
+set listchars+=trail:·
+if has("patch-7.4.710")
+  set listchars+=space:·
+endif
+autocmd Filetype python setlocal ts=4 sw=4 sts=4 expandtab
