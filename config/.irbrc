@@ -2,12 +2,17 @@ begin
   require 'wirble'
   require 'hirb'
 
-  # Syntax highlighting
-  Wirble.init
-  Wirble.colorize
+  # Syntax highlighting with wirble
+  if Object.const_defined?('Wirble')
+    Wirble.init
+    Wirble.colorize
+  end
 rescue LoadError => e
   STDERR.puts e.class.name + ': ' + e.message
 end
+
+require 'json'
+require 'yaml'
 
 # History configuration
 IRB.conf[:HISTORY_SIZE] = 10_000
