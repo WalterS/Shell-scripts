@@ -3,6 +3,16 @@
 #
 ############################################################
 
+# Read and write history
+hist_rw() {
+  if [[ $- =~ i ]]; then
+    history -n
+    history -a
+  fi
+}
+
+trap hist_rw 0
+
 # Source global definitions
 if [[ -f /etc/bashrc ]]; then
 	. /etc/bashrc
