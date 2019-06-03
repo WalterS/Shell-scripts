@@ -114,6 +114,8 @@ end
         comment: timestring
       }
       logger.warn('Error when writing Exif tags to ' + file_name + ': ' + exif_writer.errors.join("\n")) unless exif_writer.write
+    else
+      logger.warn('Unexpected response, download skipped')
     end
   end
 end
