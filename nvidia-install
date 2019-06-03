@@ -1,0 +1,14 @@
+#!/bin/bash
+
+############################################################
+# nvidia-install
+#
+# Wrapper for nvidia-installer
+#
+############################################################
+
+if [ "$(id -u)" != "0" ]; then
+    CMD='sudo'
+fi
+
+$CMD /usr/src/nvidia/latest/nvidia-installer -a -q -X --dkms --ui=none "$@"
