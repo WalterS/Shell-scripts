@@ -1,48 +1,55 @@
 #!/bin/bash
 
 ############################################################
-# my_functions
+# _functions
 #
-# WS 20160107
+# WS 20190718
 ############################################################
 
 # Print help for this file
 function _help_all {
-local MY_PATH MY_NAME
-MY_NAME=${BASH_SOURCE[0]##*/}
-MY_PATH=$(cd ${BASH_SOURCE[0]%/*};pwd)
-cat <<-EOM
+  local MY_PATH MY_NAME
+  MY_NAME="${BASH_SOURCE[0]##*/}"
+  MY_PATH=$(cd "${BASH_SOURCE[0]%/*}"||{ echo "Failed to determine path" >&2;exit 1; };pwd)
+  cat <<-EOM
 
-  This file provides the following functions:
-  $(awk -F'[ +()]' '/\(\)[[:blank:]]*\{/ {print $1}' "${BASH_SOURCE[0]}"|sort)
+		This file provides the following functions:
+		$(awk '/\s+\(\)\s+{\s*$/ {print $1}' "${BASH_SOURCE[0]}"|sort)
 
-  Each function can be called with -h or --help for a short description.
-  "${FUNCNAME[0]}" will provide this help text.
+		Each function can be called with -h or --help for a short description.
+		"${FUNCNAME[0]}" will provide this help text.
 
-  To use it, insert ". ${MY_PATH}/${MY_NAME}" at the beginning of your script.
-  If you copy functions from this file make sure you keep the tabs.
+		To use it, insert ". ${MY_PATH}/${MY_NAME}" at the beginning of your script.
+		If you copy functions from this file make sure you keep the tabs.
 
-EOM
+	EOM
 }
 
 # Join array
 array_join () {
   local IFS_ORG=$IFS
-  local i VAR DELIMITER SEPARATOR
+  local i VAR SEPARATOR
   if [[ $1 =~ ^-(h|-help)$ ]]; then
     cat <<-EOM
 
-      ${FUNCNAME[0]} joins array
-      Usage: ${FUNCNAME[0]} "array[@]","<delimiter>"
-      Example: ${FUNCNAME[0]} "array[@]",", "
-      N.b.: array[@] can also be a string containing delimiters set by \$IFS
+			${FUNCNAME[0]} joins array
+			Usage: ${FUNCNAME[0]} "\${array[@]}[,<delimiter>]
+			Example: ${FUNCNAME[0]} "\${array[@]},, "
 
-    EOM
+			If no separator is given, ", " will be used
+
+		EOM
     return
   fi
-  i="$@"
-  declare -a VAR=( ${i%%,*} )
-  SEPARATOR="${i#*,}"
+
+  VAR=("$@")
+  if [[ ${VAR[-1]} =~ , ]]; then
+    SEPARATOR="${VAR[-1]#*,}"
+    VAR[$((${#VAR[@]}-1))]=${VAR[-1]%%,*}
+  else
+    SEPARATOR=', '
+  fi
+
   if [[ $SEPARATOR =~ "#" ]]; then
     echo "${FUNCNAME[0]}: Error: Separator must not contain "'"#"'
     return 1
@@ -59,17 +66,20 @@ array_join () {
 
 # Search process list for a given string (case insensitiv)
 psgrep () {
-  local VAR=$1
+  # shellcheck disable=SC2178
+  local VAR="$1"
+  # shellcheck disable=SC2128
   if [[ "$VAR" =~ ^-(h|-help)$ ]]; then
     cat <<-EOM
 
-      ${FUNCNAME[0]} searches the process list for a given string (case insensitiv)
-      Usage: ${FUNCNAME[0]} search_string
+			${FUNCNAME[0]} searches the process list for a given string (case insensitiv)
+			Usage: ${FUNCNAME[0]} search_string
 
-    EOM
+		EOM
     return
   fi
   sanity_check ps grep
+  # shellcheck disable=SC2009,SC2128
   ps -ef | grep -i -- "$(sed -r 's/[[:alnum:]]/[&]/'<<<"$VAR")"
 }
 
@@ -78,17 +88,17 @@ purge_env () {
   if [[ $1 =~ ^-(h|-help)$ ]]; then
     cat <<-EOM
 
-      ${FUNCNAME[0]} purges all variables except PATH|USER|HOME|DISPLAY
-      Usage: ${FUNCNAME[0]}
+			${FUNCNAME[0]} purges all variables except PATH|USER|HOME|DISPLAY
+			Usage: ${FUNCNAME[0]}
 
-    EOM
+		EOM
     return
   fi
   unalias -a
   local VAR IFS
   IFS=$'\n'
   for VAR in $(env | awk -F= 'BEGIN {IGNORECASE=1} ! /^(path|user|home|display|ifs)/ {print $1}'); do
-    unset $VAR &>/dev/null
+    unset "$VAR" &>/dev/null
   done
 }
 
@@ -96,22 +106,23 @@ purge_env () {
 sanity_check () {
   local IFS_ORG=$IFS
   unset IFS
-  local PRG PRG_DEFAULT="awk bc sed"
+  local MY_PRG PRG PRG_DEFAULT="awk bc sed"
   if [[ $# -eq 0 ]]; then
     PRG=$PRG_DEFAULT
   else
+    # shellcheck disable=SC2221,SC2222
     case "$@" in
       *-h*|*--help*)
         cat <<-EOM
 
-          ${FUNCNAME[0]} checks if required commands exist
-          Usage: ${FUNCNAME[0]} [command [command ...]]
-                 With no parameters ${FUNCNAME[0]} checks for $PRG_DEFAULT
+					${FUNCNAME[0]} checks if required commands exist
+					Usage: ${FUNCNAME[0]} [command [command ...]]
+					       With no parameters ${FUNCNAME[0]} checks for $PRG_DEFAULT
 
-        EOM
+				EOM
         IFS=$IFS_ORG
         return ;;
-      *) PRG="$@" ;;
+      *) PRG="$*" ;;
     esac
   fi
   if [[ "${BASH_VERSION%%.*}" -lt 4 || -z "$BASH_VERSION" ]]; then
@@ -119,9 +130,9 @@ sanity_check () {
     IFS=$IFS_ORG
     return 1
   fi
-  for PRG in $PRG; do
-    if ! command -v $PRG &>/dev/null; then
-      echo "Error: Could not find ${PRG}, can't continue" >&2
+  for MY_PRG in $PRG; do
+    if ! command -v "$MY_PRG" &>/dev/null; then
+      echo "Error: Could not find ${MY_PRG}, can't continue" >&2
       IFS=$IFS_ORG
       return 1
     fi
@@ -135,10 +146,10 @@ strip_whitespace () {
   if [[ $1 =~ ^-(h|-help)$ ]]; then
     cat <<-EOM
 
-      ${FUNCNAME[0]} removes leading and trailing whitespaces
-      Usage: ${FUNCNAME[0]} string
+			${FUNCNAME[0]} removes leading and trailing whitespaces
+			Usage: ${FUNCNAME[0]} string
 
-    EOM
+		EOM
   fi
   sed -r 's/^[[:blank:]]+//;s/[[:blank:]]+$//'<<<"$@"
 }
@@ -149,12 +160,12 @@ typetest () {
   local i VAR VAR1 TYPES
   [[ $# -eq 0 ]] && return 1
   if [[ $1 =~ -(h|-help) ]]; then
-    cat <<-EOM
+		cat <<-EOM
 
-      ${FUNCNAME[0]} checks variable type
-      Usage: ${FUNCNAME[0]} variable (no leading "$")
+			${FUNCNAME[0]} checks variable type
+			Usage: ${FUNCNAME[0]} variable (no leading "$")
 
-    EOM
+		EOM
     return
   fi
   unset IFS
@@ -165,7 +176,7 @@ typetest () {
   [l]="lowercase"
   [u]="uppercase"
   )
-  TYPE=$(declare -p $1|cut -d' ' -f2) || return 1
+  TYPE=$(declare -p "$1"|cut -d' ' -f2) || return 1
   TYPE=${TYPE//-/}
   for (( i=0; i < ${#TYPE}; i++)); do
     VAR+=" ${TYPE:$i:1}"
@@ -184,24 +195,25 @@ unset_any () {
   if [[ "$*" =~ -(h|-help) ]]; then
     cat <<-EOM
 
-      ${FUNCNAME[0]} unsets any variable, even if it is read-only
-      Usage: ${FUNCNAME[0]} var1 [var2 ...] or ${FUNCNAME[0]} "var1 [var2 ...]"
+			${FUNCNAME[0]} unsets any variable, even if it is read-only
+			Usage: ${FUNCNAME[0]} var1 [var2 ...] or ${FUNCNAME[0]} "var1 [var2 ...]"
 
-    EOM
+		EOM
     return
   fi
   sanity_check gdb || return 1
-  local V RC=0 IFS_ORG=$IFS VAR="$*"
+  local V RC=0 IFS_ORG="$IFS" VAR="$*"
   unset IFS
   for V in $VAR; do
-    declare -p $V &>/dev/null || continue
-    if ! unset $V &>/dev/null; then
+    declare -p "$V" &>/dev/null || continue
+    if ! unset "$V" &>/dev/null; then
       gdb -n -q &>/dev/null <<-EOI
-        attach $$
-        call unbind_variable("$V")
-        detach
-        quit
-      EOI
+				attach $$
+				call unbind_variable("$V")
+				detach
+				quit
+			EOI
+      # shellcheck disable=SC2181
       if [[ $? -ne 0 ]]; then
         echo "${FUNCNAME[0]}: Error while executing gdb" >&2
         RC=1
@@ -217,10 +229,10 @@ uptm () {
   if [[ "$*" =~ -(h|-help) ]]; then
     cat <<-EOM
 
-      ${FUNCNAME[0]} prints a neat human readable uptime
-      Usage: ${FUNCNAME[0]}
+			${FUNCNAME[0]} prints a neat human readable uptime
+			Usage: ${FUNCNAME[0]}
 
-    EOM
+		EOM
     return
   fi
 
@@ -236,14 +248,35 @@ uptm () {
   [[ $D = 1 ]] && DAY=day
 
   T=$((T%86400))
-  H=$(($T/3600))
+  H=$((T/3600))
   [[ $H = 1 ]] && HOUR=hour
 
   T=$((T%3600))
-  M=$(($T/60))
+  M=$((T/60))
   [[ $M = 1 ]] && MIN=minute
 
   echo "$D $DAY, $H $HOUR, $M $MIN"
+}
+
+# Print absolute path of calling script
+mypath () {
+  if [[ "$*" =~ -(h|-help) ]]; then
+    cat <<-EOM
+
+			${FUNCNAME[0]} prints the (absolute) path of a script
+			Usage: ${FUNCNAME[0]} [-f]
+			Parameter: -f|--follow Follow symlink
+
+		EOM
+    return
+  fi
+  if [[ "$*" =~ -(f|-follow) ]]; then
+    local ABS
+    ABS="$(readlink -e "${BASH_SOURCE[0]}")"
+    echo "${ABS%/*}"
+  else
+    echo "$(cd "${0%/*}"||{ echo "Failed to determine path" >&2;exit 1; }; pwd)"
+  fi
 }
 
 # Print help text if called directly
