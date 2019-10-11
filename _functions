@@ -279,6 +279,16 @@ mypath () {
   fi
 }
 
+# Wait for a process to finish
+waitfor () {
+  local PID="$1"
+  while :; do
+    ps -ho pid "$PID" >/dev/null || break
+    print -n .
+    sleep 5
+  done
+}
+
 # Print help text if called directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   _help_all
