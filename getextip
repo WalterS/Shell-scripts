@@ -1,32 +1,31 @@
-#!/bin/sh
+#!/bin/bash
 
 ############################################################
 # getextip
 #
 # Get external IP address (ppp0) via SNMP
 #
-# WS 20100225
 ############################################################
 
-host=localhost
-community=community
+HOST=localhost
+COMMUNITY=community
 
 # Get WAN IP address from SNMP
-active_int=`snmpwalk -v 2c -c $community $host IP-MIB::ipAdEntIfIndex|sed 's/ /@/g'`
-active_int_index=`echo $active_int | awk -F'@' 'BEGIN {RS=" "} {print $NF}'`
+ACTIVE_INT=$(snmpwalk -v 2c -c $COMMUNITY $HOST IP-MIB::ipAdEntIfIndex|sed 's/ /@/g')
+ACTIVE_INT_INDEX=$(awk -F'@' 'BEGIN {RS=" "} {print $NF}'<<<"$ACTIVE_INT")
 
-for n in $active_int_index; do
-	int_name=`snmpwalk -v 2c -c $community $host IF-MIB::ifDescr.${n} | awk '/ppp[0-9]/ {print $NF}'`
-	if [ ! "$int_name" == "" ]; then
-		ip=`echo $active_int | awk -F'IfIndex.|@=' 'BEGIN {RS=" "} /'"$n"'$/ {print $2}'`
-	fi
+for n in $ACTIVE_INT_INDEX; do
+  INT_NAME=$(snmpwalk -v 2c -c $COMMUNITY $HOST IF-MIB::ifDescr.${n} | awk '/ppp[0-9]/ {print $NF}')
+  if [[ -n "$INT_NAME" ]]; then
+    IP=$(awk -F'IfIndex.|@=' 'BEGIN {RS=" "} /'"$n"'$/ {print $2}'<<<"$ACTIVE_INT")
+  fi
 done
 
 # If ppp0 is not found, report it as down
-if [ "$ip" == "" ]; then
-	echo "External interface is down"
+if [[ -z "$IP" ]]; then
+  echo "External interface is down"
 else
-	echo "External IP address is $ip"
+  echo "External IP address is $IP"
 fi
 
 exit 0
