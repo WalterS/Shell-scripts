@@ -14,22 +14,28 @@
 [alias]
   # Show aliases
   alias = "!f() { git config $1 --get-regexp '^alias\\.'|sed 's/^alias.//;s/ /: /'|sort; }; f"
-  # Clone recursive
+  # Checkout recursively
+  checkout = checkout --recurse-submodules
+  # Clone recursively
   cr = clone --recursive
   # Use --force-with-lease if available
   force = "!f() { if [[ $(git --version|awk -F' +|\\\\.' '{print $3}') == 1 ]]; then git push -f; else git push --force-with-lease; fi; }; f"
   # Fetch and prune
+  f = fetch --prune
   fetch = fetch --prune
   # Fancy log output
   lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
   # Pull and prune
   p = pull --prune
   # Pull recursive and prune
-  pr = pull --recurse-submodules --prune
+  # pr = pull --recurse-submodules --prune
+  pr = "!git pull --prune && git submodule update --init --recursive"
   # Reset and pull current state
-  refresh = "!git reset -q --hard $(git rev-list --max-parents=0 HEAD|tail -1) && git pull --prune"
+  r = "!git reset -q --hard $(git rev-list --max-parents=0 HEAD|tail -1) && git pull --prune"
+  refresh = "!git reset -q --hard $(git rev-list --max-parents=0 HEAD|tail -1) && git pull --recurse-submodules --prune && git submodule update --init --recursive"
   # Reset hard -n commits; if no number given, reset to first commit
   rh = "!f() { if [[ -n \"$1\" ]]; then R=\"HEAD~$1\"; else R=\"$(git rev-list --max-parents=0 HEAD|tail -1)\";fi;git reset -q --hard $R; }; f"
+  s = status
   # Update submodules
   sm = submodule update --init --recursive
 [log]
