@@ -3,7 +3,7 @@
 ################################################################################
 # check_port
 #
-# Checks if a given TCP/UDP port is open using Bash sockets
+# Check if a given TCP/UDP port is open using Bash sockets
 #
 # WS 20110823
 ################################################################################
@@ -18,16 +18,19 @@ usage () {
 cat <<END
 
 $MY_NAME checks for open TCP/UDP ports
-Usage:      $MY_NAME -H <hostname> -p <port_number> -t [tcp|udp]
+
+Usage:      $MY_NAME -h <hostname> -p <port_number> -t [tcp|udp]
+
 Parameters: --help
-               This help message             
+               This help message
             -h|--host
                Host name or IP address (default: 127.0.0.1)
             -p|--port
                Either a single port, a list with blanks as delimiters or a range in the format "n-n" (default: 22)
             -t|--protocol
                tcp or udp (default: tcp)
-Example:    $MY_NAME -H localhost --port="22 25"
+
+Example:    $MY_NAME -h localhost --port="22 25"
             Check if ports 22 (SSH) and 25 (SMTP) are open on localhost
 
 Ports are expected either as single value, separated by blanks or two values separated by hyphen
@@ -38,95 +41,90 @@ END
 # Get command line options
 OPTIONS_LONG="help,host:,protocol:,port:"
 OPTIONS_SHORT="h:p:t:"
-if ! PARSED_OPTIONS=$(getopt -qn "$0" -o "$OPTIONS_SHORT" -l "$OPTIONS_LONG" -- "$@"); then
-	echo "Error: Invalid option"
-	usage >&2
-	exit 2
+if ! PARSED_OPTIONS=$(getopt -Q -o "$OPTIONS_SHORT" -l "$OPTIONS_LONG" -- "$@" 2>&1); then
+  sed 's/^getopt/Error/g'<<<"$PARSED_OPTIONS" >&2
+  usage >&2
+  exit 2
 fi
 OPTERR=0
 eval set -- "$PARSED_OPTIONS"
 
 while [[ $# -ge 1 ]]; do
-	case $1 in
-		--help)
-			usage
-			exit 0 ;;
-		-h|--host)
-			HOST="$2"; shift ;;
-		-p|--port)
-			PORT="$2"; shift ;;
-		-t|--protocol)	PROTO=${2,,}
-			if [[ "$PROTO" != "tcp" && "$PROTO" != "udp" ]]; then
-				echo "Error: Invalid protocol, either specify \"tcp\" or \"udp\"" >&2
-				usage >&2
-				exit 2
-			fi; shift ;;
-		--)
-			break ;;
-		*)
-			echo "Error: Wrong parameter $1" >&2
-			usage >&2
-			exit 2 ;;
+  case $1 in
+    --help)
+      usage
+      exit 0 ;;
+    -h|--host)
+      HOST="$2"; shift ;;
+    -p|--port)
+      PORT="$2"; shift ;;
+    -t|--protocol)  PROTO=${2,,}
+      if [[ ! $PROTO =~ tcp|udp ]]; then
+        echo "Error: Invalid protocol, either specify \"tcp\" or \"udp\"" >&2
+        usage >&2
+        exit 2
+      fi; shift ;;
+    --)
+      break ;;
+    *)
+      echo "Error: Wrong parameter $1" >&2
+      usage >&2
+      exit 2 ;;
         esac
         shift
 done
 
-
 if [[ -z "$HOST" || -z "$PORT" || -z "$PROTO" ]]; then
-	echo "Error: Need more input" >&2
-	usage >&2
-	exit 2
+  echo "Error: Need more input" >&2
+  usage >&2
+  exit 2
 fi
 
-
-# Remove trailing blanks
-# shellcheck disable=SC2116
-# shellcheck disable=SC2086
+# shellcheck disable=SC2086,SC2116
+# Remove extra blanks
 PORT=$(echo $PORT)
 # Only numbers, blanks and hyphen allowed
 if [[ ! $PORT =~ ^([1-9][0-9]*( |-)?)*[0-9]+$ ]]; then
-	echo "Error: Only numbers, blanks and hyphen allowed in port value" >&2
-	usage >&2
-	exit 2
+  echo "Error: Only numbers, blanks and hyphen allowed in port value" >&2
+  usage >&2
+  exit 2
 fi
 
 # Check for port list
 # Ports are expected either as single value, separated by blank or two values separated by hyphen
 # Only one hyphen allowed
 if [[ $PORT =~ -.*-.* ]]; then
-	echo "Error: More than one hyphen in port list" >&2
-	usage >&2
-	exit 2
+  echo "Error: More than one hyphen in port list" >&2
+  usage >&2
+  exit 2
 else
-	# No mixing of hyphen and blanks
-	if [[ $PORT =~ -.*( ).*|( ).*-.* ]]; then
-		echo "Error: Hyphen and blank in port list" >&2
-		usage >&2
-		exit 2
-	fi
+  # No mixing of hyphen and blanks
+  if [[ $PORT =~ -.*( ).*|( ).*-.* ]]; then
+    echo "Error: Hyphen and blank in port list" >&2
+    usage >&2
+    exit 2
+  fi
 fi
 
 # Second value in port range has to be greater than first value
 if [[ $PORT =~ - ]]; then
-	if ((${PORT##*-} < ${PORT%%-*})); then
-		echo "Error: First value in port range is greater or equal than second value" >&2
-		usage >&2
-		exit 2
-	else
-		PORT=$(seq "${PORT%%-*}" "${PORT##*-}")
-	fi
+  if ((${PORT##*-} < ${PORT%%-*})); then
+    echo "Error: First value in port range is greater or equal than second value" >&2
+    usage >&2
+    exit 2
+  else
+    PORT=$(seq "${PORT%%-*}" "${PORT##*-}")
+  fi
 fi
 
 #### Here we go
 for P in $PORT; do
-
-	if (echo >"/dev/tcp/${HOST}/$P") &>/dev/null; then
-		echo "${PROTO^^} port $P on $HOST is open"
-	else
-		echo "${PROTO^^} port $P on $HOST is closed"
-		RC=1
-	fi
-
+  if (echo >"/dev/tcp/${HOST}/$P") &>/dev/null; then
+    echo "${PROTO^^} port $P on $HOST is open"
+  else
+    echo "${PROTO^^} port $P on $HOST is closed"
+    RC=1
+  fi
 done
 
 exit $RC
