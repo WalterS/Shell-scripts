@@ -5,7 +5,6 @@
 #
 # Add a given amount of seconds to boot time and print the result
 #
-# WS 20120921
 ################################################################################
 
 # We need input
@@ -14,34 +13,34 @@ DATE_DMESG=$1
 DATE_BOOT=
 
 # Only accept integers and floating point numbers
-if ! egrep -q '^[0-9]+(\.[0-9]+)*$'<<<$DATE_DMESG; then
-	DATE_DMESG=
+if ! grep -Eq '^[0-9]+(\.[0-9]+)*$'<<<"$DATE_DMESG"; then
+  DATE_DMESG=
 fi
 
 # Get interactive if no number entered
 if [[ -z "$DATE_DMESG" ]]; then
-	echo "Please enter an integer:"
-	while [[ -z "$DATE_DMESG" ]]; do
-		read DATE_DMESG
-		if ! egrep -q '^[0-9]+\.*[0-9]*'<<<$DATE_DMESG; then
-			DATE_DMESG=
-			echo -n "Please enter a number: "
-		fi
-	done
+  echo "Please enter an integer:"
+  while [[ -z "$DATE_DMESG" ]]; do
+    read -r DATE_DMESG
+    if ! grep -Eq '^[0-9]+\.*[0-9]*'<<<"$DATE_DMESG"; then
+      DATE_DMESG=
+      echo -n "Please enter a number: "
+    fi
+  done
 fi
 
 # Get last boot date
-DATE_DMESG=$(awk '{printf "%.0f", $1}'<<<$DATE_DMESG)
-if ! DATE_BOOT=$(date -d @$[$(date '+%s') - $(date -d @$(awk '{print $1}' /proc/uptime) '+%s')] '+%s'); then
-	exit 1
+DATE_DMESG=$(awk '{printf "%.0f", $1}'<<<"$DATE_DMESG")
+if ! DATE_BOOT=$(date -d @$(($(date '+%s') - $(date -d @"$(awk '{print $1}' /proc/uptime)" '+%s'))) '+%s'); then
+  exit 1
 fi
 if [[ -z "$DATE_BOOT" ]]; then
-	echo "Error: Could not get last boot date" >&2
-	exit 1
+  echo "Error: Could not get last boot date" >&2
+  exit 1
 fi
 
 # Print time string
-date --rfc-3339=seconds -d @$[$DATE_BOOT+$DATE_DMESG]
+date --rfc-3339=seconds -d @$((DATE_BOOT + DATE_DMESG))
 
 exit 0
 
