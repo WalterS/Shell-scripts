@@ -53,11 +53,13 @@ end
 def rename(old_name, new_name)
   raise("File \"#{old_name}\" does not exist") unless File.exist?(old_name)
 
+  old_name_ext = File.extname(old_name).sub(/^\./, '')
+  extensions = [old_name_ext, 'orf', 'jpg', 'rw2'].uniq
   basename_old = old_name.chomp(File.extname(old_name))
   basename_new = new_name.chomp(File.extname(new_name))
   filename_old = File.basename(old_name, File.extname(old_name))
   filename_new = File.basename(new_name, File.extname(new_name))
-  %w[orf jpg rw2].each do |ext|
+  extensions.each do |ext|
     next unless File.exist?("#{basename_old}.#{ext}")
 
     File.rename("#{basename_old}.#{ext}", "#{basename_new}.#{ext}") if @options[:rename] == true
