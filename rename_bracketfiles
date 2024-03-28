@@ -3,8 +3,8 @@
 
 ################################################################################
 #
-# Add a sequence counter from exif to Olympus raw files and also rename/edit
-# associated JPEG/XMP files if present.
+# Add a sequence counter from exif to Olympus bracketing raw files and also
+# rename/edit associated JPEG/XMP files if present.
 # If the basename already has a suffix -n*, replace it.
 #
 # Renaming a single file also works for non-Olympus files.
@@ -14,7 +14,9 @@
 require 'multi_exiftool'
 require 'optparse'
 
+# Defaults
 @options = { rename: false, verbose: false }
+
 OptionParser.new do |opts|
   opts.banner = "Usage: #{File.basename($PROGRAM_NAME)} [@options] DIRECTORY\n\
   With no @options #{File.basename($PROGRAM_NAME)} will only list files which would be renamed\n\n"
@@ -121,7 +123,9 @@ end
 
 if found_files.zero?
   puts 'No bracket files found to rename'
+elsif @options[:rename] == true
+  puts "Renamed #{found_files} bracket files"
 else
   puts "Found #{found_files} bracket files to rename"
-  puts 'For actually renaming files use -m or --rename' if @options[:rename] != true
+  puts 'For actually renaming files use -m or --rename'
 end
