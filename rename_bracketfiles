@@ -1,0 +1,127 @@
+#!/bin/env ruby
+# frozen_string_literal: true
+
+################################################################################
+#
+# Add a sequence counter from exif to Olympus raw files and also rename/edit
+# associated JPEG/XMP files if present.
+# If the basename already has a suffix -n*, replace it.
+#
+# Renaming a single file also works for non-Olympus files.
+#
+################################################################################
+
+require 'multi_exiftool'
+require 'optparse'
+
+@options = { rename: false, verbose: false }
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{File.basename($PROGRAM_NAME)} [@options] DIRECTORY\n\
+  With no @options #{File.basename($PROGRAM_NAME)} will only list files which would be renamed\n\n"
+  opts.on('-m', '--[no-]rename', 'Rename bracket files')
+  opts.on('-r', '--recursive', 'Also search in subdirectories')
+  opts.on('-s', '--single OLDNAME,NEWNAME', Array, 'Rename a single file and its associated files')
+  opts.on('-v', '--verbose', 'Verbose output')
+end.parse!(into: @options)
+
+# Test if a string contains only numbers
+class String
+  def numeric?
+    !Float(self).nil?
+  rescue StandardError
+    false
+  end
+end
+
+def message(message)
+  puts message if @options[:verbose] == true || @options[:rename] != true
+end
+
+# Change "DerivedFrom" tag in XMP file
+def edit_xmp(file, old_value, new_value)
+  content = ''
+  File.open(file, 'r') do |f|
+    content = f.read
+  end
+  content.sub!(old_value, new_value)
+  File.write(file, content)
+end
+
+# Rename a given file and its associated files
+def rename(old_name, new_name)
+  raise("File \"#{old_name}\" does not exist") unless File.exist?(old_name)
+
+  basename_old = old_name.chomp(File.extname(old_name))
+  basename_new = new_name.chomp(File.extname(new_name))
+  filename_old = File.basename(old_name, File.extname(old_name))
+  filename_new = File.basename(new_name, File.extname(new_name))
+  %w[orf jpg rw2].each do |ext|
+    next unless File.exist?("#{basename_old}.#{ext}")
+
+    File.rename("#{basename_old}.#{ext}", "#{basename_new}.#{ext}") if @options[:rename] == true
+    message("#{basename_old}.#{ext} => #{basename_new}.#{ext}")
+
+    next unless File.exist?("#{basename_old}.#{ext}.xmp")
+
+    if @options[:rename] == true
+      edit_xmp("#{basename_old}.#{ext}.xmp", "#{filename_old}.#{ext}", "#{filename_new}.#{ext}")
+      File.rename("#{basename_old}.#{ext}.xmp", "#{basename_new}.#{ext}.xmp")
+    end
+    message("#{basename_old}.#{ext}.xmp => #{basename_new}.#{ext}.xmp")
+  end
+end
+
+if @options[:single]
+  raise("Wrong number of values for --single. Expected 2, got #{@options[:single].count}") if @options[:single].count != 2
+
+  rename(@options[:single][0], @options[:single][1])
+
+  puts 'For actually renaming files use -m or --rename' if @options[:rename] != true
+
+  exit
+end
+
+raise 'Error: No directory given' if ARGV.empty?
+
+allfiles = []
+found_files = 0
+ARGV.each do |dir|
+  r = ''
+  r = '**' if @options[:recursive] == true
+  allfiles = Dir.glob(File.join(File.expand_path(dir), r, '*.orf'))
+  next if allfiles.empty?
+
+  results, errors = MultiExiftool.read(allfiles)
+
+  raise errors unless errors.empty?
+
+  results.each do |values|
+    # Skip non bracket files
+    next unless values.drivemode =~ /bracket/i
+
+    sourcefile = values.sourcefile
+    path = File.dirname(sourcefile)
+    file = values.file_name
+    basename = File.basename(file, File.extname(file))
+    if basename.match?(/.*-.*/) && basename.split('-').last.numeric?
+      basename_arr = basename.split('-')
+      basename_arr.pop
+      basename = basename_arr.join('-')
+    end
+    # Create counter suffix from shot numbering and pad it
+    counter = format('%03d', values.drivemode.split(';').first.sub(/^.*shot( *)/i, ''))
+    filename_new = File.join(path, "#{basename}-#{counter}.orf")
+    next if sourcefile == filename_new
+
+    found_files += 1
+
+    rename(sourcefile, filename_new)
+  end
+end
+
+if found_files.zero?
+  puts 'No bracket files found to rename'
+else
+  puts "Found #{found_files} bracket files to rename"
+  puts 'For actually renaming files use -m or --rename' if @options[:rename] != true
+end
