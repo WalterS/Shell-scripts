@@ -3,11 +3,20 @@
 #
 ############################################################
 
+
+# Compress history
+hist_compress () {
+  ruby -i -e 'puts readlines.reverse.uniq.reverse' ~/.bash_history
+  history -c
+  history -r
+}
+
 # Read and write history
 hist_rw() {
   if [[ $- =~ i ]]; then
     history -n
     history -a
+    hist_compress
   fi
 }
 
@@ -36,6 +45,9 @@ for p in /sbin /usr/sbin; do
 done
 unset p
 
+pgrep xbindkeys &>/dev/null || xbindkeys
+# pgrep unclutter >/dev/null || unclutter -idle 3 -root
+
 # No duplicates in history
 export HISTCONTROL="ignoreboth:erasedups"
 # Max history file size
@@ -45,7 +57,7 @@ export HISTSIZE=5000
 # Set window title to user@host
 export PROMPT_COMMAND='echo -ne "\033]0;${USER}@${HOSTNAME}\007"'
 # Ignore command "history" and single-letter commands"
-export HISTIGNORE='history*:h *:?'
+export HISTIGNORE='history*:h *:?:jobs:fg'
 
 export EDITOR=vi
 export PAGER=less
@@ -74,13 +86,13 @@ fi
 
 # Show if we are in a screen session
 is_screen (){
-[[ -n "$STY" ]] && echo "This is a screen session"
+  [[ -n "$STY" ]] && echo "This is a screen session"
 }
 
 # Function for process list search
 # Search process list for a given string (case insensitiv)
 psgrep () {
-ps -ef | grep -i -- "$(sed -r 's/[[:alnum:]]/[&]/'<<<"$1")"
+  ps -ef | grep -i -- "$(sed -r 's/[[:alnum:]]/[&]/'<<<"$1")"
 }
 
 # Function for command history search
@@ -104,6 +116,7 @@ fi
 
 local LHISTCMD=$((HISTCMD-1))
 history | awk -F'^ *[0-9]+ +' 'BEGIN {IGNORECASE=1}; $2~/'"$STR"'/' | awk '$1 !~ /'"$LHISTCMD"'/'
+
 # If 'HISTTIMEFORMAT="%y-%m-%d %T "' is used:
 # history | awk -F'^.*[0-9][0-9]:[0-9][0-9]:[0-9][0-9] +' 'BEGIN {IGNORECASE=1}; $2~/'"$STR"'/' | awk '$1 !~ /'"$LHISTCMD"'/'
 }
@@ -112,16 +125,26 @@ history | awk -F'^ *[0-9]+ +' 'BEGIN {IGNORECASE=1}; $2~/'"$STR"'/' | awk '$1 !~
 # Assumes that either the current directory equals the name in ~/.gitconfig
 # or that everything after "/git" corresponds to the repository path in Github
 #
+
+# Print Git branch if available
+__git_branch () {
+  command -v git &>/dev/null || return
+  local BRANCH
+  BRANCH=$(git symbolic-ref -q --short HEAD 2>/dev/null) || return
+  [[ -z "$BRANCH" ]] && return
+  echo " (${BRANCH})"
+}
+
 git_current() {
 local GITHUB='github.com'
 local REPONAME=${PWD##*/}
 local REPOBRANCH
-if ! egrep -qw 'master|release'<<<$1; then
+if ! grep -Eqw 'master|release'<<<$1; then
 	REPOBRANCH='master'
 else
 	REPOBRANCH=$1
 fi
-if ! 'grep' -q 'remote "'$REPONAME'"' ~/.gitconfig; then
+if ! grep -q 'remote "'$REPONAME'"' ~/.gitconfig; then
 	echo "$REPONAME is not defined in ~/.gitconfig, trying Github"
 	REPONAME="$(sed 's#^.*git/#git@'$GITHUB':#'<<<$(pwd)).git"
 fi
@@ -151,6 +174,11 @@ while true; do
 done
 }
 
+# Show most recent directory entries
+ltr () {
+  ls -lAtr "$@"|tail
+}
+
 ## Aliases
 alias ls="\ls $COLOR_OPT"
 alias lt="\ls -lat $COLOR_OPT"
@@ -168,23 +196,29 @@ alias digs="\dig +noall +answer"
 alias scr="\screen -dR"
 alias grep="\grep $COLOR_OPT"
 alias egrep="\egrep $COLOR_OPT"
-if which vim &>/dev/null; then
+alias less='less -R'
+if command -v vim &>/dev/null; then
 	export EDITOR=vim
 	alias vi="\vim"
 	alias view="\vim -R"
 fi
+command -v bat &>/dev/null && alias cat='BAT_THEME=OneHalfLight bat'
+if command -v rg &>/dev/null; then
+  alias ggrep="\grep $COLOR_OPT"
+  alias grep=rg
+fi
 
 case "$TERM" in
 xterm*|rxvt*|screen*)
-	export PS1='\[\e['${PROMPT_COLOR}'\]\u@\h:\w[\!]\$\[\e[m\]'
-	;;
+  export PS1='\[\e['${PROMPT_COLOR}'\]\u@\h:\w$([ \j -gt 0 ] && echo [\j])$(__git_branch)\$\[\e[m\]'
+  ;;
 linux*)
-	export PS1='\[\e['${PROMPT_COLOR}'\]\u@\h:\w[\!]\$\[\e[m\]'
-	unset PROMPT_COMMAND
-	;;
+  export PS1='\[\e['${PROMPT_COLOR}'\]\u@\h:\w$([ \j -gt 0 ] && echo [\j])$(__git_branch)\$\[\e[m\]'
+  unset PROMPT_COMMAND
+  ;;
 *)
-	export PS1='\[\u@\h:\w[\!]\$i\]'
-	;;
+  export PS1='\[\u@\h:\w$([ \j -gt 0 ] && echo [\j])\$i\]$(__git_branch)'
+  ;;
 esac
 
 # EOF
